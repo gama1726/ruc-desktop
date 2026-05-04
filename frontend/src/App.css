@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --ruk-red: #a3121a;
   --ruk-red-dark: #7a0d13;
   --ruk-red-hover: #c41e2a;
@@ -40,7 +40,7 @@ body {
   background: var(--ruk-bg);
 }
 
-/* ——— Title bar (декоративная шапка в стиле окна) ——— */
+/* вЂ”вЂ”вЂ” Title bar (РґРµРєРѕСЂР°С‚РёРІРЅР°СЏ С€Р°РїРєР° РІ СЃС‚РёР»Рµ РѕРєРЅР°) вЂ”вЂ”вЂ” */
 .titlebar {
   height: 40px;
   flex-shrink: 0;
@@ -90,7 +90,7 @@ body {
   border-color: #d08080;
 }
 
-/* ——— Main layout ——— */
+/* вЂ”вЂ”вЂ” Main layout вЂ”вЂ”вЂ” */
 .shell-body {
   flex: 1;
   display: flex;
@@ -210,6 +210,42 @@ body {
   cursor: not-allowed;
 }
 
+\.sidebar-engine {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--ruk-bg);
+  border-radius: 8px;
+  border: 1px solid var(--ruk-border);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.sidebar-mini {
+  font-size: 0.72rem;
+  color: var(--ruk-muted);
+  margin: 4px 0;
+  line-height: 1.35;
+}
+
+.sidebar-mini .inline-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: var(--ruk-text);
+  word-break: break-all;
+}
+
+.sidebar-steps {
+  margin: 8px 0 0;
+  padding-left: 1rem;
+  font-size: 0.7rem;
+  color: var(--ruk-muted);
+  line-height: 1.35;
+}
+
+.sidebar-steps li {
+  margin-bottom: 4px;
+}
+
 .sidebar-spacer {
   flex: 1;
   min-height: 16px;
@@ -247,7 +283,7 @@ body {
   background: var(--ruk-red-soft);
 }
 
-/* ——— Workspace ——— */
+/* вЂ”вЂ”вЂ” Workspace вЂ”вЂ”вЂ” */
 .workspace {
   flex: 1;
   display: flex;
@@ -471,7 +507,85 @@ body {
   border: 1px solid #f0c4c4;
 }
 
-/* ——— Tabs ——— */
+.banner-success {
+  background: #eef7ee;
+  color: #1d4b1f;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin-bottom: 10px;
+  border: 1px solid #c7e4c8;
+}
+
+.banner-success strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.panel-inline {
+  background: var(--ruk-white);
+  border: 1px solid var(--ruk-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.panel-inline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--ruk-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  gap: 10px;
+}
+
+.ticket-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticket-id {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.signal-log {
+  margin: 8px 0 0;
+  background: #121417;
+  color: #b9f5c3;
+  border-radius: 6px;
+  border: 1px solid #2a323c;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* вЂ”вЂ”вЂ” Tabs вЂ”вЂ”вЂ” */
 .tabs {
   display: flex;
   gap: 4px;
@@ -506,7 +620,7 @@ body {
   box-shadow: 0 -2px 0 var(--ruk-red) inset;
 }
 
-/* ——— Pane ——— */
+/* вЂ”вЂ”вЂ” Pane вЂ”вЂ”вЂ” */
 .workspace-pane {
   flex: 1;
   min-height: 180px;
@@ -574,6 +688,39 @@ body {
   color: var(--ruk-muted);
 }
 
+.session-hint {
+  font-size: 0.85rem;
+  color: var(--ruk-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.demo-steps {
+  margin: 14px 0 0;
+  padding-left: 1.15rem;
+  font-size: 0.82rem;
+  color: var(--ruk-muted);
+  line-height: 1.45;
+}
+
+.demo-steps li {
+  margin-bottom: 6px;
+}
+
+.demo-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.table-caption {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
 .session-deeplink {
   margin-top: 8px;
   display: flex;
@@ -591,6 +738,38 @@ body {
   border-radius: 6px;
   font-size: 0.78rem;
   word-break: break-all;
+}
+
+.deeplink-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+a.btn-primary {
+  text-decoration: none;
+}
+
+.btn-secondary-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  min-height: 32px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ruk-text);
+  background: var(--ruk-white);
+  border: 1px solid var(--ruk-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-secondary-outline:hover {
+  border-color: var(--ruk-red);
+  color: var(--ruk-red);
+  background: var(--ruk-red-soft);
 }
 
 .data-table {
@@ -649,7 +828,7 @@ body {
   color: var(--ruk-red);
 }
 
-/* ——— Status bar ——— */
+/* вЂ”вЂ”вЂ” Status bar вЂ”вЂ”вЂ” */
 .statusbar {
   flex-shrink: 0;
   display: flex;
@@ -717,3 +896,4 @@ body {
     border-left: none;
   }
 }
+
