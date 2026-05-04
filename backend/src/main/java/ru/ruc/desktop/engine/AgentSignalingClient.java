@@ -167,17 +167,59 @@ public class AgentSignalingClient {
                 String msg = textBuffer.toString();
                 textBuffer.setLength(0);
                 System.out.println("[agent] ws message: " + msg);
-                if (msg.contains("\"viewer-ready\"")) {
-                    webSocket.sendText(
-                            "{\"type\":\"agent-offer\",\"agentUid\":\""
-                                    + escape(cfg.agentUid)
-                                    + "\",\"ts\":"
-                                    + System.currentTimeMillis()
-                                    + "}",
-                            true);
-                }
+                handleSignal(webSocket, msg);
             }
             return WebSocket.Listener.super.onText(webSocket, data, last);
+        }
+
+        private void handleSignal(WebSocket webSocket, String msg) {
+            try {
+                JsonNode node = MAPPER.readTree(msg);
+                String type = node.path("type").asText("");
+                switch (type) {
+                    case "viewer-ready" -> sendOffer(webSocket);
+                    case "offer" -> {
+                        sendAnswer(webSocket, node.path("payload"));
+                        sendIceCandidate(webSocket);
+                    }
+                    case "ping" -> webSocket.sendText(
+                            "{\"type\":\"pong\",\"ts\":" + System.currentTimeMillis() + "}", true);
+                    default -> {
+                        // ignore unknown signal types in demo agent
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("[agent] ws parse error: " + e.getMessage());
+            }
+        }
+
+        private void sendOffer(WebSocket webSocket) {
+            webSocket.sendText(
+                    "{\"type\":\"offer\",\"ts\":"
+                            + System.currentTimeMillis()
+                            + ",\"payload\":{\"sdp\":\"demo-offer-from-agent\",\"agentUid\":\""
+                            + escape(cfg.agentUid)
+                            + "\"}}",
+                    true);
+        }
+
+        private void sendAnswer(WebSocket webSocket, JsonNode offerPayload) {
+            String remoteSdp = offerPayload.path("sdp").asText("unknown-offer");
+            webSocket.sendText(
+                    "{\"type\":\"answer\",\"ts\":"
+                            + System.currentTimeMillis()
+                            + ",\"payload\":{\"sdp\":\"demo-answer-for-"
+                            + escape(remoteSdp)
+                            + "\"}}",
+                    true);
+        }
+
+        private void sendIceCandidate(WebSocket webSocket) {
+            webSocket.sendText(
+                    "{\"type\":\"ice-candidate\",\"ts\":"
+                            + System.currentTimeMillis()
+                            + ",\"payload\":{\"candidate\":\"demo-agent-candidate\",\"sdpMid\":\"0\",\"sdpMLineIndex\":0}}",
+                    true);
         }
 
         @Override

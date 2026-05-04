@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   closeSession,
@@ -10,7 +10,6 @@ import {
   getOperatorId,
   issueConnectionTicket,
   setOperatorId,
-  signalingWsUrl,
   startSession,
   type ConnectionTicket,
   type Machine,
@@ -18,6 +17,7 @@ import {
   type Session,
 } from "./api";
 import { useLocalPeerDisplay } from "./hooks/useLocalPeerDisplay";
+import { ViewerSignalingClient } from "./signaling";
 
 const FAVORITES_KEY = "ruc-favorite-machine-ids";
 
@@ -57,7 +57,18 @@ export function App() {
   const [engineHint, setEngineHint] = useState<EngineHint | null>(null);
   const [signalStatus, setSignalStatus] = useState<"idle" | "connecting" | "connected" | "closed">("idle");
   const [signalLog, setSignalLog] = useState<string[]>([]);
-  const [signalSocket, setSignalSocket] = useState<WebSocket | null>(null);
+  const signalingRef = useRef<ViewerSignalingClient | null>(null);
+
+  useEffect(() => {
+    signalingRef.current = new ViewerSignalingClient({
+      onStatus: (next) => setSignalStatus(next),
+      onLog: (line) => setSignalLog((prev) => [line, ...prev].slice(0, 20)),
+    });
+    return () => {
+      signalingRef.current?.disconnect();
+      signalingRef.current = null;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -192,36 +203,11 @@ export function App() {
   }
 
   function disconnectSignaling() {
-    if (signalSocket && signalSocket.readyState === WebSocket.OPEN) {
-      signalSocket.close(1000, "manual-close");
-    }
-    setSignalSocket(null);
-    setSignalStatus("closed");
+    signalingRef.current?.disconnect();
   }
 
   function connectSignaling(ticket: ConnectionTicket) {
-    disconnectSignaling();
-    setSignalStatus("connecting");
-    const ws = new WebSocket(signalingWsUrl(ticket.token, "viewer", operator || "demo"));
-
-    ws.onopen = () => {
-      setSignalStatus("connected");
-      setSignalLog((prev) => [`[open] ticket=${ticket.token}`, ...prev].slice(0, 20));
-      ws.send(JSON.stringify({ type: "viewer-ready", ts: Date.now() }));
-    };
-    ws.onmessage = (event) => {
-      setSignalLog((prev) => [`[msg] ${String(event.data)}`, ...prev].slice(0, 20));
-    };
-    ws.onerror = () => {
-      setSignalLog((prev) => ["[error] signaling socket error", ...prev].slice(0, 20));
-    };
-    ws.onclose = (e) => {
-      setSignalStatus("closed");
-      setSignalLog((prev) => [`[close] code=${e.code} reason=${e.reason || "-"}`, ...prev].slice(0, 20));
-      setSignalSocket(null);
-    };
-
-    setSignalSocket(ws);
+    signalingRef.current?.connect(ticket, operator || "demo");
   }
 
   function toggleFavorite(machineId: number) {

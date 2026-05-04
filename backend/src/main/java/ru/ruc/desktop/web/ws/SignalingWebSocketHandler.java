@@ -1,6 +1,9 @@
 package ru.ruc.desktop.web.ws;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Set;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -17,6 +20,18 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     private static final String ATTR_TICKET = "ticket";
     private static final String ATTR_ROLE = "role";
     private static final String ATTR_ACTOR = "actor";
+    private static final Set<String> ALLOWED_TYPES =
+            Set.of(
+                    "viewer-ready",
+                    "agent-ready",
+                    "offer",
+                    "answer",
+                    "ice-candidate",
+                    "ping",
+                    "pong",
+                    "error");
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final SignalingService signalingService;
 
@@ -48,7 +63,8 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         if ("viewer".equals(role)) {
             signalingService.markViewerConsumeTicket(ticket, actor);
         }
-        session.sendMessage(new TextMessage("{\"type\":\"ack\",\"role\":\"" + role + "\"}"));
+        SignalEnvelope ack = new SignalEnvelope("ack", Instant.now().toEpochMilli(), "server", "backend", null);
+        session.sendMessage(new TextMessage(MAPPER.writeValueAsString(ack)));
     }
 
     @Override
@@ -58,7 +74,16 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         if (ticket == null || role == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "session not initialized");
         }
-        signalingService.relay(ticket, role, message.getPayload());
+        SignalEnvelope incoming = parseAndValidate(message.getPayload());
+        String actor = getAttr(session, ATTR_ACTOR);
+        SignalEnvelope outgoing =
+                new SignalEnvelope(
+                        incoming.type(),
+                        incoming.ts() != null ? incoming.ts() : Instant.now().toEpochMilli(),
+                        role,
+                        actor,
+                        incoming.payload());
+        signalingService.relay(ticket, role, MAPPER.writeValueAsString(outgoing));
     }
 
     @Override
@@ -100,5 +125,20 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             result.put(key, val);
         }
         return result;
+    }
+
+    private SignalEnvelope parseAndValidate(String payload) {
+        try {
+            SignalEnvelope env = MAPPER.readValue(payload, SignalEnvelope.class);
+            if (env.type() == null || env.type().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "signal type required");
+            }
+            if (!ALLOWED_TYPES.contains(env.type())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unsupported signal type");
+            }
+            return env;
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid signaling payload");
+        }
     }
 }
