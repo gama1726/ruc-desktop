@@ -8,6 +8,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -33,6 +35,9 @@ public class AgentSignalingClient {
 
         System.out.println("[agent] starting with uid=" + cfg.agentUid + ", remoteId=" + cfg.remoteId);
         System.out.println("[agent] backend=" + cfg.backendBaseUrl);
+        System.out.println(
+                "[agent] native helper="
+                        + (cfg.helperPath == null ? "disabled" : cfg.helperPath));
 
         WebSocket socket = null;
         String activeTicket = null;
@@ -124,10 +129,11 @@ public class AgentSignalingClient {
             String wsUrl = wsBase + "/ws/signaling?ticket=" + urlEncode(ticket) + "&role=agent&actor=" + urlEncode(cfg.agentUid);
             System.out.println("[agent] connect ws: " + wsUrl);
 
+            NativeHelperBridge helperBridge = NativeHelperBridge.tryStart(cfg);
             WebSocket ws = HttpClient.newHttpClient()
                     .newWebSocketBuilder()
                     .connectTimeout(Duration.ofSeconds(5))
-                    .buildAsync(URI.create(wsUrl), new AgentSocketListener(cfg))
+                    .buildAsync(URI.create(wsUrl), new AgentSocketListener(cfg, helperBridge))
                     .join();
 
             ws.sendText("{\"type\":\"agent-ready\",\"ts\":" + System.currentTimeMillis() + "}", true);
@@ -148,10 +154,12 @@ public class AgentSignalingClient {
 
     private static final class AgentSocketListener implements WebSocket.Listener {
         private final AgentConfig cfg;
+        private final NativeHelperBridge helperBridge;
         private final StringBuilder textBuffer = new StringBuilder();
 
-        private AgentSocketListener(AgentConfig cfg) {
+        private AgentSocketListener(AgentConfig cfg, NativeHelperBridge helperBridge) {
             this.cfg = cfg;
+            this.helperBridge = helperBridge;
         }
 
         @Override
@@ -177,11 +185,10 @@ public class AgentSignalingClient {
                 JsonNode node = MAPPER.readTree(msg);
                 String type = node.path("type").asText("");
                 switch (type) {
-                    case "viewer-ready" -> sendOffer(webSocket);
-                    case "offer" -> {
-                        sendAnswer(webSocket, node.path("payload"));
-                        sendIceCandidate(webSocket);
-                    }
+                    case "viewer-ready" -> sendAgentReady(webSocket);
+                    case "offer" -> handleOffer(webSocket, node.path("payload"));
+                    case "answer" -> logAnswer(node.path("payload"));
+                    case "ice-candidate" -> handleRemoteCandidate(webSocket, node.path("payload"));
                     case "ping" -> webSocket.sendText(
                             "{\"type\":\"pong\",\"ts\":" + System.currentTimeMillis() + "}", true);
                     default -> {
@@ -193,45 +200,168 @@ public class AgentSignalingClient {
             }
         }
 
-        private void sendOffer(WebSocket webSocket) {
+        private void sendAgentReady(WebSocket webSocket) {
             webSocket.sendText(
-                    "{\"type\":\"offer\",\"ts\":"
+                    "{\"type\":\"agent-ready\",\"ts\":"
                             + System.currentTimeMillis()
-                            + ",\"payload\":{\"sdp\":\"demo-offer-from-agent\",\"agentUid\":\""
+                            + ",\"payload\":{\"capabilities\":{\"webrtcBridge\":false},\"agentUid\":\""
                             + escape(cfg.agentUid)
                             + "\"}}",
                     true);
         }
 
-        private void sendAnswer(WebSocket webSocket, JsonNode offerPayload) {
-            String remoteSdp = offerPayload.path("sdp").asText("unknown-offer");
+        private void sendMockAnswerAndCandidate(WebSocket webSocket, JsonNode offerPayload) {
+            String offerSdp = offerPayload.path("sdp").asText("");
             webSocket.sendText(
                     "{\"type\":\"answer\",\"ts\":"
                             + System.currentTimeMillis()
-                            + ",\"payload\":{\"sdp\":\"demo-answer-for-"
-                            + escape(remoteSdp)
-                            + "\"}}",
+                            + ",\"payload\":{\"mode\":\"mock\",\"sdp\":\"\",\"sdpType\":\"answer\",\"note\":\"native webrtc bridge not configured\",\"offerSdpLength\":"
+                            + offerSdp.length()
+                            + "}}",
                     true);
+            sendIceCandidate(webSocket);
+        }
+
+        private void handleOffer(WebSocket webSocket, JsonNode offerPayload) {
+            if (helperBridge == null) {
+                sendMockAnswerAndCandidate(webSocket, offerPayload);
+                return;
+            }
+            helperBridge.sendToHelper("offer", offerPayload.toString());
+            helperBridge.drainToSocket(webSocket);
         }
 
         private void sendIceCandidate(WebSocket webSocket) {
             webSocket.sendText(
                     "{\"type\":\"ice-candidate\",\"ts\":"
                             + System.currentTimeMillis()
-                            + ",\"payload\":{\"candidate\":\"demo-agent-candidate\",\"sdpMid\":\"0\",\"sdpMLineIndex\":0}}",
+                            + ",\"payload\":{\"mode\":\"mock\",\"candidate\":\"demo-agent-candidate\",\"sdpMid\":\"0\",\"sdpMLineIndex\":0}}",
                     true);
+        }
+
+        private void logAnswer(JsonNode payload) {
+            System.out.println("[agent] answer received: " + payload.toString());
+        }
+
+        private void logCandidate(JsonNode payload) {
+            System.out.println("[agent] candidate received: " + payload.toString());
+        }
+
+        private void handleRemoteCandidate(WebSocket webSocket, JsonNode payload) {
+            if (helperBridge == null) {
+                logCandidate(payload);
+                return;
+            }
+            helperBridge.sendToHelper("ice-candidate", payload.toString());
+            helperBridge.drainToSocket(webSocket);
         }
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+            if (helperBridge != null) {
+                helperBridge.shutdown();
+            }
             System.out.println("[agent] ws close code=" + statusCode + ", reason=" + reason);
             return WebSocket.Listener.super.onClose(webSocket, statusCode, reason);
         }
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
+            if (helperBridge != null) {
+                helperBridge.shutdown();
+            }
             System.out.println("[agent] ws error: " + error.getMessage());
             WebSocket.Listener.super.onError(webSocket, error);
+        }
+
+    }
+
+    private static final class NativeHelperBridge {
+        private final Process process;
+        private final java.io.BufferedWriter writer;
+        private final java.io.BufferedReader reader;
+
+        private NativeHelperBridge(Process process, java.io.BufferedWriter writer, java.io.BufferedReader reader) {
+            this.process = process;
+            this.writer = writer;
+            this.reader = reader;
+        }
+
+        static NativeHelperBridge tryStart(AgentConfig cfg) {
+            if (cfg.helperPath == null || cfg.helperPath.isBlank()) {
+                return null;
+            }
+            try {
+                Path path = Path.of(cfg.helperPath);
+                if (!Files.exists(path)) {
+                    System.out.println("[agent] helper not found: " + cfg.helperPath);
+                    return null;
+                }
+                Process process = new ProcessBuilder(cfg.helperPath).start();
+                java.io.BufferedWriter writer =
+                        new java.io.BufferedWriter(
+                                new java.io.OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+                java.io.BufferedReader reader =
+                        new java.io.BufferedReader(
+                                new java.io.InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+                NativeHelperBridge bridge = new NativeHelperBridge(process, writer, reader);
+                bridge.drainStartupLogs();
+                return bridge;
+            } catch (Exception e) {
+                System.out.println("[agent] helper start failed: " + e.getMessage());
+                return null;
+            }
+        }
+
+        void sendToHelper(String type, String payloadJson) {
+            try {
+                writer.write("{\"type\":\"" + type + "\",\"payload\":" + payloadJson + "}");
+                writer.newLine();
+                writer.flush();
+            } catch (Exception e) {
+                System.out.println("[agent] helper write failed: " + e.getMessage());
+            }
+        }
+
+        void drainToSocket(WebSocket webSocket) {
+            if (webSocket == null) {
+                return;
+            }
+            try {
+                while (reader.ready()) {
+                    String line = reader.readLine();
+                    if (line == null || line.isBlank()) {
+                        break;
+                    }
+                    webSocket.sendText(line, true);
+                }
+            } catch (Exception e) {
+                System.out.println("[agent] helper read failed: " + e.getMessage());
+            }
+        }
+
+        private void drainStartupLogs() {
+            try {
+                if (reader.ready()) {
+                    String line = reader.readLine();
+                    if (line != null && !line.isBlank()) {
+                        System.out.println("[agent] helper: " + line);
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("[agent] helper startup read failed: " + e.getMessage());
+            }
+        }
+
+        void shutdown() {
+            try {
+                writer.write("{\"type\":\"shutdown\"}");
+                writer.newLine();
+                writer.flush();
+            } catch (Exception ignored) {
+                // ignore
+            }
+            process.destroy();
         }
     }
 
@@ -242,16 +372,26 @@ public class AgentSignalingClient {
             Long machineId,
             String remoteId,
             String ipAddress,
-            long heartbeatIntervalSeconds) {
+            long heartbeatIntervalSeconds,
+            String helperPath) {
         static AgentConfig fromEnv() {
             String base = getenv("RUC_BACKEND_BASE_URL", "http://localhost:8080");
             String uid = getenv("RUC_AGENT_UID", "agent-local-1");
             String displayName = getenv("RUC_AGENT_DISPLAY_NAME", "RUC Agent Local");
             String remoteId = getenv("RUC_AGENT_REMOTE_ID", "260227322");
             String ip = getenv("RUC_AGENT_IP", "127.0.0.1");
+            String helperPath = getenv("RUC_AGENT_HELPER_PATH", "");
             Long machineId = parseLongOrNull(System.getenv("RUC_AGENT_MACHINE_ID"));
             long heartbeat = parseLongOrDefault(System.getenv("RUC_AGENT_HEARTBEAT_SECONDS"), 15L);
-            return new AgentConfig(base, uid, displayName, machineId, remoteId, ip, heartbeat);
+            return new AgentConfig(
+                    base,
+                    uid,
+                    displayName,
+                    machineId,
+                    remoteId,
+                    ip,
+                    heartbeat,
+                    helperPath.isBlank() ? null : helperPath);
         }
 
         private static String getenv(String key, String def) {
