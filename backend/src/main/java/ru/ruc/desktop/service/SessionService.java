@@ -20,14 +20,17 @@ public class SessionService {
     private final MachineRepository machineRepository;
     private final RemoteAccessSessionRepository sessionRepository;
     private final ConnectionHintBuilder hintBuilder;
+    private final SessionAuditService auditService;
 
     public SessionService(
             MachineRepository machineRepository,
             RemoteAccessSessionRepository sessionRepository,
-            ConnectionHintBuilder hintBuilder) {
+            ConnectionHintBuilder hintBuilder,
+            SessionAuditService auditService) {
         this.machineRepository = machineRepository;
         this.sessionRepository = sessionRepository;
         this.hintBuilder = hintBuilder;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -44,6 +47,7 @@ public class SessionService {
         s.setStatus(SessionStatus.ACTIVE);
         s.setStartedAt(Instant.now());
         s = sessionRepository.save(s);
+        auditService.log(operatorUserId, machine.getId(), machine.getEnginePeerId(), "SESSION_STARTED", "source=machine");
         return toResponse(s);
     }
 
@@ -60,6 +64,8 @@ public class SessionService {
         }
         s.setStatus(SessionStatus.CLOSED);
         s.setEndedAt(Instant.now());
+        Machine machine = s.getMachine();
+        auditService.log(operatorUserId, machine.getId(), machine.getEnginePeerId(), "SESSION_CLOSED", "manual=true");
         return toResponse(s);
     }
 
