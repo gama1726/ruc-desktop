@@ -1,12 +1,12 @@
 # RUC Native Helper (C++)
 
-Minimal native helper process for agent-side WebRTC bridge integration.
+Native helper process for agent-side WebRTC bridge integration.
 
 Current status:
 
 - transport protocol: JSON lines over `stdin/stdout`
-- implementation: stub (no libwebrtc yet)
-- purpose: provide a stable contract between Java agent and future native bridge
+- implementation: real `offer/answer/ice` handling via `libdatachannel`
+- purpose: terminate WebRTC on native side and exchange signaling with Java agent
 
 ## Build (Windows, CMake)
 
@@ -19,6 +19,11 @@ cmake --build build --config Release
 Binary path example:
 
 `native-helper/build/Release/ruc_native_helper.exe`
+
+Build notes:
+
+- CMake needs internet access on first configure step (FetchContent downloads dependencies).
+- Toolchain must include C++17 compiler and git.
 
 ## Protocol
 
@@ -34,3 +39,8 @@ Output frames:
 - `{"type":"answer","payload":{...}}`
 - `{"type":"ice-candidate","payload":{...}}`
 - `{"type":"log","payload":{...}}`
+
+Important payload fields:
+
+- `answer.payload.mode = "webrtc"` when helper produced real SDP
+- `ice-candidate.payload.mode = "webrtc"` for real ICE candidates
