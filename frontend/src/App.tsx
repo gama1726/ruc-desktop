@@ -229,19 +229,19 @@ export function App() {
   );
 
   const tabs: { id: TabId; label: string }[] = [
-    { id: "recent", label: "РџРѕСЃР»РµРґРЅРёРµ СЃРµР°РЅСЃС‹" },
-    { id: "favorites", label: "РР·Р±СЂР°РЅРЅРѕРµ" },
-    { id: "found", label: "РќР°Р№РґРµРЅРѕ" },
-    { id: "address", label: "РђРґСЂРµСЃРЅР°СЏ РєРЅРёРіР°" },
-    { id: "invites", label: "РџСЂРёРіР»Р°С€РµРЅРёСЏ" },
+    { id: "recent", label: "Последние сеансы" },
+    { id: "favorites", label: "Избранное" },
+    { id: "found", label: "Найдено" },
+    { id: "address", label: "Адресная книга" },
+    { id: "invites", label: "Приглашения" },
   ];
 
   return (
     <div className="shell">
       <header className="titlebar">
         <div className="titlebar-drag">
-          <span className="titlebar-title">Р РЈРљ РљРѕРЅРЅРµРєС‚</span>
-          <span className="titlebar-sub">Р РѕСЃСЃРёР№СЃРєРёР№ СѓРЅРёРІРµСЂСЃРёС‚РµС‚ РєРѕРѕРїРµСЂР°С†РёРё</span>
+          <span className="titlebar-title">РУК Коннект</span>
+          <span className="titlebar-sub">Российский университет кооперации</span>
         </div>
         <div className="titlebar-controls" aria-hidden="true">
           <span className="tb-dot minimize" />
@@ -254,26 +254,26 @@ export function App() {
         <aside className="sidebar">
           <div className="brand">
             <div className="brand-mark" aria-hidden="true">
-              Р 
+              Р
             </div>
             <div className="brand-text">
-              <span className="brand-name">Р РЈРљ РљРѕРЅРЅРµРєС‚</span>
-              <span className="brand-tagline">СѓРґР°Р»С‘РЅРЅС‹Р№ РґРѕСЃС‚СѓРї</span>
+              <span className="brand-name">РУК Коннект</span>
+              <span className="brand-tagline">удалённый доступ</span>
             </div>
           </div>
 
           <p className="sidebar-lead">
-            Р’Р°С€ СЂР°Р±РѕС‡РёР№ СЃС‚РѕР» РјРѕР¶РЅРѕ Р·Р°РїСЂРѕСЃРёС‚СЊ РїРѕ СЌС‚РѕРјСѓ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ Рё РѕРґРЅРѕСЂР°Р·РѕРІРѕРјСѓ РєР»СЋС‡Сѓ РґРѕСЃС‚СѓРїР°.
+            Ваш рабочий стол можно запросить по этому идентификатору и одноразовому ключу доступа.
           </p>
 
           <div className="sidebar-field">
             <div className="sidebar-label-row">
               <span className="sidebar-label">ID</span>
               <div className="sidebar-icon-btns">
-                <button type="button" className="icon-btn" title="РљРѕРїРёСЂРѕРІР°С‚СЊ ID" onClick={() => localPeer.copyId()}>
+                <button type="button" className="icon-btn" title="Копировать ID" onClick={() => localPeer.copyId()}>
                   <IconCopy />
                 </button>
-                <button type="button" className="icon-btn" title="РџР°СЂР°РјРµС‚СЂС‹ (СЃРєРѕСЂРѕ)" disabled>
+                <button type="button" className="icon-btn" title="Параметры (скоро)" disabled>
                   <IconGear />
                 </button>
               </div>
@@ -283,8 +283,8 @@ export function App() {
 
           <div className="sidebar-field">
             <div className="sidebar-label-row">
-              <span className="sidebar-label">РљР»СЋС‡ РґРѕСЃС‚СѓРїР°</span>
-              <button type="button" className="icon-btn" title="РќРѕРІС‹Р№ РєР»СЋС‡" onClick={() => localPeer.rotatePassword()}>
+              <span className="sidebar-label">Ключ доступа</span>
+              <button type="button" className="icon-btn" title="Новый ключ" onClick={() => localPeer.rotatePassword()}>
                 <IconRefresh />
               </button>
             </div>
@@ -322,9 +322,9 @@ export function App() {
           <div className="sidebar-spacer" />
 
           <div className="sidebar-support">
-            <p className="sidebar-support-text">Р•СЃС‚СЊ РІРѕРїСЂРѕСЃС‹ РёР»Рё РЅР°С€Р»Рё РѕС€РёР±РєСѓ?</p>
+            <p className="sidebar-support-text">Есть вопросы или нашли ошибку?</p>
             <a className="btn-outline" href="mailto:support@ruc.ru">
-              РЎР»СѓР¶Р±Р° РїРѕРґРґРµСЂР¶РєРё
+              Служба поддержки
             </a>
           </div>
         </aside>
@@ -332,7 +332,7 @@ export function App() {
         <main className="workspace">
           <div className="workspace-top">
             <section className="card card-wide">
-              <h2 className="card-title">РЈРїСЂР°РІР»РµРЅРёРµ СѓРґР°Р»С‘РЅРЅС‹Рј СЂР°Р±РѕС‡РёРј СЃС‚РѕР»РѕРј</h2>
+              <h2 className="card-title">Управление удалённым рабочим столом</h2>
               <div className="connect-row">
                 <input
                   className="field-lg"
@@ -352,41 +352,41 @@ export function App() {
                 />
                 <div className="connect-actions">
                   <button type="button" className="btn-primary" onClick={() => void onConnectById()}>
-                    РџРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ
+                    Подключиться
                   </button>
-                  <button type="button" className="btn-primary-chevron" title="Р”РѕРї. РґРµР№СЃС‚РІРёСЏ (СЃРєРѕСЂРѕ)" disabled>
-                    в–ѕ
+                  <button type="button" className="btn-primary-chevron" title="Доп. действия (скоро)" disabled>
+                    ▾
                   </button>
                 </div>
               </div>
               <ol className="demo-steps">
                 <li>
-                  РќР° СЃРІРѕС‘Рј РџРљ СѓСЃС‚Р°РЅРѕРІРёС‚Рµ С‚РѕС‚ Р¶Рµ РєР»РёРµРЅС‚ СѓРґР°Р»С‘РЅРЅРѕРіРѕ РґРѕСЃС‚СѓРїР°, С‡С‚Рѕ Рё РЅР° СѓРґР°Р»С‘РЅРЅРѕР№ РјР°С€РёРЅРµ (РґР»СЏ РґРµРјРѕ вЂ”
+                  На своём ПК установите тот же клиент удалённого доступа, что и на удалённой машине (для демо —
                   клиент удалённого доступа\.
                 </li>
                 <li>
-                  Р’РІРµРґРёС‚Рµ Р»СЋР±РѕР№ ID СЃРІРµСЂС…Сѓ Рё РЅР°Р¶РјРёС‚Рµ В«РџРѕРґРєР»СЋС‡РёС‚СЊСЃСЏВ», Р»РёР±Рѕ РІС‹Р±РµСЂРёС‚Рµ РјР°С€РёРЅСѓ РІ В«РђРґСЂРµСЃРЅРѕР№ РєРЅРёРіРµВ».
+                  Введите любой ID сверху и нажмите «Подключиться», либо выберите машину в «Адресной книге».
                 </li>
               </ol>
             </section>
 
             <section className="card card-narrow">
               <div className="card-title-row">
-                <h2 className="card-title">РђРІС‚РѕСЂРёР·Р°С†РёСЏ</h2>
-                <span className="info-dot" title="Р’С…РѕРґ РІ РєРѕРЅС‚СѓСЂ Р РЈРљ">
+                <h2 className="card-title">Авторизация</h2>
+                <span className="info-dot" title="Вход в контур РУК">
                   <IconInfo />
                 </span>
               </div>
-              <p className="card-muted">РђРІС‚РѕСЂРёР·СѓР№С‚РµСЃСЊ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Р°РґСЂРµСЃРЅРѕР№ РєРЅРёРіРѕР№ Рё СЃРµСЃСЃРёСЏРјРё.</p>
+              <p className="card-muted">Авторизуйтесь для работы с адресной книгой и сессиями.</p>
               {!authOpen ? (
                 <button type="button" className="btn-primary btn-block" onClick={() => setAuthOpen(true)}>
                   <IconLogin />
-                  Р’РѕР№С‚Рё
+                  Войти
                 </button>
               ) : (
                 <div className="auth-form">
                   <label className="stack-label">
-                    Р›РѕРіРёРЅ (Р·Р°РіРѕР»РѕРІРѕРє X-Ruc-User)
+                    Логин (заголовок X-Ruc-User)
                     <input
                       className="field-md"
                       type="text"
@@ -397,10 +397,10 @@ export function App() {
                   </label>
                   <div className="auth-form-actions">
                     <button type="button" className="btn-primary" onClick={saveOperator}>
-                      РЎРѕС…СЂР°РЅРёС‚СЊ
+                      Сохранить
                     </button>
                     <button type="button" className="btn-ghost" onClick={() => setAuthOpen(false)}>
-                      РћС‚РјРµРЅР°
+                      Отмена
                     </button>
                   </div>
                 </div>
@@ -411,26 +411,26 @@ export function App() {
           {error ? <div className="banner-error">{error}</div> : null}
           {lastTicket ? (
             <div className="banner-success">
-              <strong>РўРёРєРµС‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ РІС‹РґР°РЅ: {lastTicket.token}</strong>
+              <strong>Тикет подключения выдан: {lastTicket.token}</strong>
               <p className="muted">
-                ID: {lastTicket.remoteId}, РґРµР№СЃС‚РІСѓРµС‚ РґРѕ {new Date(lastTicket.expiresAt).toLocaleTimeString("ru-RU")}
+                ID: {lastTicket.remoteId}, действует до {new Date(lastTicket.expiresAt).toLocaleTimeString("ru-RU")}
               </p>
               <p className="muted">{lastTicket.connectionHint}</p>
               {lastTicket.deepLink ? (
                 <div className="deeplink-actions">
                   <a className="btn-primary btn-sm" href={lastTicket.deepLink}>
-                    РћС‚РєСЂС‹С‚СЊ РІ РєР»РёРµРЅС‚Рµ
+                    Открыть в клиенте
                   </a>
                   <button
                     type="button"
                     className="btn-secondary-outline btn-sm"
                     onClick={() => void navigator.clipboard.writeText(lastTicket.deepLink!)}
                   >
-                    РљРѕРїРёСЂРѕРІР°С‚СЊ СЃСЃС‹Р»РєСѓ
+                    Копировать ссылку
                   </button>
                 </div>
               ) : (
-                <p className="muted small">РќРµ РЅР°СЃС‚СЂРѕРµРЅ С€Р°Р±Р»РѕРЅ deep link РЅР° СЃРµСЂРІРµСЂРµ.</p>
+                <p className="muted small">Не настроен шаблон deep link на сервере.</p>
               )}
             </div>
           ) : null}
@@ -438,8 +438,8 @@ export function App() {
           {tickets.length > 0 ? (
             <div className="panel-inline">
               <div className="panel-inline-head">
-                <strong>Р’С‹РґР°РЅРЅС‹Рµ С‚РёРєРµС‚С‹ ({tickets.length})</strong>
-                <span className="muted">TTL РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ: 5 РјРёРЅСѓС‚</span>
+                <strong>Выданные тикеты ({tickets.length})</strong>
+                <span className="muted">TTL по умолчанию: 5 минут</span>
               </div>
               <div className="ticket-list">
                 {tickets.slice(0, 5).map((t) => (
@@ -447,13 +447,13 @@ export function App() {
                     <div className="ticket-main">
                       <span className="ticket-id mono">{t.remoteId}</span>
                       <span className="muted small">
-                        token: {t.token} В· РґРѕ {new Date(t.expiresAt).toLocaleTimeString("ru-RU")}
+                        token: {t.token} · до {new Date(t.expiresAt).toLocaleTimeString("ru-RU")}
                       </span>
                     </div>
                     <div className="ticket-actions">
                       {t.deepLink ? (
                         <a className="btn-primary btn-sm" href={t.deepLink}>
-                          РћС‚РєСЂС‹С‚СЊ
+                          Открыть
                         </a>
                       ) : null}
                       <button type="button" className="btn-secondary-outline btn-sm" onClick={() => void onConsumeTicket(t.token)}>
@@ -469,8 +469,8 @@ export function App() {
           {lastTicket ? (
             <div className="panel-inline">
               <div className="panel-inline-head">
-                <strong>Signaling РєР°РЅР°Р»</strong>
-                <span className="muted">СЃС‚Р°С‚СѓСЃ: {signalStatus}</span>
+                <strong>Signaling канал</strong>
+                <span className="muted">статус: {signalStatus}</span>
               </div>
               <div className="ticket-actions">
                 <button
@@ -479,16 +479,16 @@ export function App() {
                   onClick={() => connectSignaling(lastTicket)}
                   disabled={signalStatus === "connecting"}
                 >
-                  РџРѕРґРєР»СЋС‡РёС‚СЊ signaling
+                  Подключить signaling
                 </button>
                 <button type="button" className="btn-secondary-outline btn-sm" onClick={disconnectSignaling}>
-                  РћС‚РєР»СЋС‡РёС‚СЊ
+                  Отключить
                 </button>
               </div>
               {signalLog.length > 0 ? (
                 <pre className="signal-log">{signalLog.join("\n")}</pre>
               ) : (
-                <p className="muted small">РџРѕСЃР»Рµ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Р·РґРµСЃСЊ Р±СѓРґСѓС‚ ACK/СЃРѕРѕР±С‰РµРЅРёСЏ РѕС‚ agent-side signaling.</p>
+                <p className="muted small">После подключения здесь будут ACK/сообщения от agent-side signaling.</p>
               )}
             </div>
           ) : null}
@@ -512,11 +512,11 @@ export function App() {
             {tab === "recent" && (
               <div className="pane-inner">
                 {loading ? (
-                  <p className="muted">Р—Р°РіСЂСѓР·РєР°вЂ¦</p>
+                  <p className="muted">Загрузка…</p>
                 ) : sessions.length === 0 ? (
                   <div className="empty-state">
-                    <p>РќРµС‚ Р°РєС‚РёРІРЅС‹С… СЃРµР°РЅСЃРѕРІ.</p>
-                    <p className="muted">РџРѕРґРєР»СЋС‡РёС‚РµСЃСЊ РїРѕ ID РёР»Рё РІС‹Р±РµСЂРёС‚Рµ РјР°С€РёРЅСѓ РІ Р°РґСЂРµСЃРЅРѕР№ РєРЅРёРіРµ.</p>
+                    <p>Нет активных сеансов.</p>
+                    <p className="muted">Подключитесь по ID или выберите машину в адресной книге.</p>
                   </div>
                 ) : (
                   <ul className="session-list">
@@ -527,7 +527,7 @@ export function App() {
                             {s.roomCode} В· {s.hostname}
                           </span>
                           <span className="session-meta">
-                            СЃ {new Date(s.startedAt).toLocaleString("ru-RU")} В· РѕРїРµСЂР°С‚РѕСЂ {s.operatorUserId}
+                            с {new Date(s.startedAt).toLocaleString("ru-RU")} · оператор {s.operatorUserId}
                           </span>
                           <div className="session-deeplink">
                             <p className="session-hint">{s.connectionHint}</p>
@@ -536,24 +536,24 @@ export function App() {
                                 <code className="deeplink-code">{s.deepLink}</code>
                                 <div className="deeplink-actions">
                                   <a className="btn-primary btn-sm" href={s.deepLink}>
-                                    РћС‚РєСЂС‹С‚СЊ РІ РєР»РёРµРЅС‚Рµ
+                                    Открыть в клиенте
                                   </a>
                                   <button
                                     type="button"
                                     className="btn-secondary-outline btn-sm"
                                     onClick={() => void navigator.clipboard.writeText(s.deepLink!)}
                                   >
-                                    РљРѕРїРёСЂРѕРІР°С‚СЊ СЃСЃС‹Р»РєСѓ
+                                    Копировать ссылку
                                   </button>
                                 </div>
                               </>
                             ) : (
-                              <p className="muted small">РЎСЃС‹Р»РєР° РЅРµРґРѕСЃС‚СѓРїРЅР°: Р·Р°РґР°Р№С‚Рµ peer РІ Р°РґСЂРµСЃРЅРѕР№ РєРЅРёРіРµ Рё С€Р°Р±Р»РѕРЅ deep-link РЅР° СЃРµСЂРІРµСЂРµ.</p>
+                              <p className="muted small">Ссылка недоступна: задайте peer в адресной книге и шаблон deep-link на сервере.</p>
                             )}
                           </div>
                         </div>
                         <button type="button" className="btn-danger-outline" onClick={() => void onCloseSession(s.id)}>
-                          Р—Р°РІРµСЂС€РёС‚СЊ
+                          Завершить
                         </button>
                       </li>
                     ))}
@@ -566,8 +566,8 @@ export function App() {
               <div className="pane-inner">
                 {favoriteMachines.length === 0 ? (
                   <div className="empty-state">
-                    <p>РР·Р±СЂР°РЅРЅС‹С… РјР°С€РёРЅ РїРѕРєР° РЅРµС‚.</p>
-                    <p className="muted">РћС‚РєСЂРѕР№С‚Рµ В«РђРґСЂРµСЃРЅР°СЏ РєРЅРёРіР°В» Рё РѕС‚РјРµС‚СЊС‚Рµ Р·РІС‘Р·РґРѕС‡РєРѕР№ РЅСѓР¶РЅС‹Рµ РџРљ.</p>
+                    <p>Избранных машин пока нет.</p>
+                    <p className="muted">Откройте «Адресная книга» и отметьте звёздочкой нужные ПК.</p>
                   </div>
                 ) : (
                   <MachineTable
@@ -582,15 +582,15 @@ export function App() {
 
             {tab === "found" && (
               <div className="pane-inner empty-state">
-                <p>РџРѕРёСЃРє РїРѕ СЃРµС‚Рё Р РЈРљ</p>
-                <p className="muted">Р—РґРµСЃСЊ РїРѕСЏРІСЏС‚СЃСЏ РѕР±РЅР°СЂСѓР¶РµРЅРЅС‹Рµ СѓР·Р»С‹, РєРѕРіРґР° Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡С‘РЅ РјРѕРґСѓР»СЊ СЃРєР°РЅРёСЂРѕРІР°РЅРёСЏ.</p>
+                <p>Поиск по сети РУК</p>
+                <p className="muted">Здесь появятся обнаруженные узлы, когда будет подключён модуль сканирования.</p>
               </div>
             )}
 
             {tab === "address" && (
               <div className="pane-inner">
                 {loading ? (
-                  <p className="muted">Р—Р°РіСЂСѓР·РєР°вЂ¦</p>
+                  <p className="muted">Загрузка…</p>
                 ) : (
                   <MachineTable
                     rows={machines}
@@ -604,8 +604,8 @@ export function App() {
 
             {tab === "invites" && (
               <div className="pane-inner empty-state">
-                <p>РџСЂРёРіР»Р°С€РµРЅРёСЏ</p>
-                <p className="muted">Р’С…РѕРґСЏС‰РёРµ Р·Р°РїСЂРѕСЃС‹ РЅР° РґРѕСЃС‚СѓРї Рє РІР°С€РµРјСѓ СЃС‚РѕР»Сѓ вЂ” РІ СЃР»РµРґСѓСЋС‰РµР№ РІРµСЂСЃРёРё.</p>
+                <p>Приглашения</p>
+                <p className="muted">Входящие запросы на доступ к вашему столу — в следующей версии.</p>
               </div>
             )}
           </div>
@@ -613,9 +613,9 @@ export function App() {
           <footer className="statusbar">
             <span className={`status-dot ${status === "ready" ? "ok" : status === "busy" ? "busy" : "err"}`} />
             <span className="status-text">
-              {status === "ready" && "Р“РѕС‚РѕРІРѕ"}
-              {status === "busy" && "Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏвЂ¦"}
-              {status === "error" && "РћС€РёР±РєР°"}
+              {status === "ready" && "Готово"}
+              {status === "busy" && "Выполняется…"}
+              {status === "error" && "Ошибка"}
             </span>
           </footer>
         </main>
@@ -638,23 +638,23 @@ function MachineTable({
   if (rows.length === 0) {
     return (
       <div className="empty-state">
-        <p>РЎРїРёСЃРѕРє РїСѓСЃС‚.</p>
+        <p>Список пуст.</p>
       </div>
     );
   }
   return (
     <>
       <p className="table-caption muted">
-        Р”Р»СЏ РґРµРјРѕ: Р·РЅР°С‡РµРЅРёРµ В«PeerВ» = ID СѓРґР°Р»С‘РЅРЅРѕР№ РјР°С€РёРЅС‹ РІ РєР»РёРµРЅС‚Рµ. РџСЂРёРјРµСЂ Р·Р°РїРёСЃРµР№ РїРѕСЃР»Рµ РїРµСЂРІРѕРіРѕ Р·Р°РїСѓСЃРєР°:{" "}
-        <strong>111222333</strong>, <strong>444555666</strong> (РїСЂРё СЃРјРµРЅРµ Р‘Р” РїРµСЂРµСЃРѕР·РґР°Р№С‚Рµ РґР°РЅРЅС‹Рµ РёР»Рё РѕР±РЅРѕРІРёС‚Рµ peer РІСЂСѓС‡РЅСѓСЋ).
+        Для демо: значение «Peer» = ID удалённой машины в клиенте. Пример записей после первого запуска:{" "}
+        <strong>111222333</strong>, <strong>444555666</strong> (при смене БД пересоздайте данные или обновите peer вручную).
       </p>
       <table className="data-table">
         <thead>
           <tr>
             <th className="col-star" />
-            <th>РђСѓРґРёС‚РѕСЂРёСЏ / РјРµСЃС‚Рѕ</th>
-            <th>РРјСЏ РџРљ</th>
-            <th>Peer (ID РІ РєР»РёРµРЅС‚Рµ)</th>
+            <th>Аудитория / место</th>
+            <th>Имя ПК</th>
+            <th>Peer (ID в клиенте)</th>
             <th />
           </tr>
         </thead>
@@ -665,7 +665,7 @@ function MachineTable({
               <button
                 type="button"
                 className={`star-btn ${favorites.has(m.id) ? "on" : ""}`}
-                title={favorites.has(m.id) ? "РЈР±СЂР°С‚СЊ РёР· РёР·Р±СЂР°РЅРЅРѕРіРѕ" : "Р’ РёР·Р±СЂР°РЅРЅРѕРµ"}
+                title={favorites.has(m.id) ? "Убрать из избранного" : "В избранное"}
                 onClick={() => onToggleFavorite(m.id)}
               >
                 в…
@@ -678,7 +678,7 @@ function MachineTable({
             </td>
             <td className="cell-actions">
               <button type="button" className="btn-primary btn-sm" onClick={() => void onConnect(m.id)}>
-                РџРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ
+                Подключиться
               </button>
             </td>
           </tr>
