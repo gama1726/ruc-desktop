@@ -7,3 +7,22 @@ dist/
 .DS_Store
 *.log
 engine-relay-data/
+
+# Native helper build output (Windows/CMake)
+native-helper/build/
+native-helper/cmake
+
+# Local RustDesk relay data (demo)
+rustdesk-data/
+
+# Agent / tooling scratch
+ticket-body.json
+backend/_agent*.err
+_paths.txt
+_git_report.txt
+
+# Local docs / server scripts (not in repo)
+ARCHITECTURE.md
+deploy/DEPLOY.md
+deploy/UBUNTU.md
+deploy/ubuntu-install.sh
