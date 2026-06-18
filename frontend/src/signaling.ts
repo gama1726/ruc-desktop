@@ -30,6 +30,8 @@ export class ViewerSignalingClient {
   private socket: WebSocket | null = null;
   private peer: RTCPeerConnection | null = null;
   private inputChannel: RTCDataChannel | null = null;
+  private offerSent = false;
+  private readonly pendingRemoteCandidates: RTCIceCandidateInit[] = [];
 
   constructor(private readonly callbacks: ViewerSignalingCallbacks) {}
 
@@ -67,6 +69,8 @@ export class ViewerSignalingClient {
       this.socket.close(1000, "manual-close");
     }
     this.socket = null;
+    this.offerSent = false;
+    this.pendingRemoteCandidates.length = 0;
     if (this.inputChannel) {
       this.inputChannel.close();
       this.inputChannel = null;
@@ -104,7 +108,9 @@ export class ViewerSignalingClient {
         break;
       case "agent-ready":
         this.callbacks.onLog("[webrtc] agent ready");
-        void this.createAndSendOffer();
+        if (!this.offerSent) {
+          void this.createAndSendOffer();
+        }
         break;
       case "ping":
         this.send({ type: "pong", ts: Date.now() });
@@ -149,24 +155,24 @@ export class ViewerSignalingClient {
       this.callbacks.onLog(`[webrtc] state=${peer.connectionState}`);
     };
     peer.ontrack = (event) => {
-      if (event.streams[0]) {
-        this.callbacks.onLog("[webrtc] remote video track received");
-        this.callbacks.onRemoteVideoStream?.(event.streams[0]);
-      }
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      this.callbacks.onLog("[webrtc] remote video track received");
+      this.callbacks.onRemoteVideoStream?.(stream);
     };
     return peer;
   }
 
   private async createAndSendOffer() {
-    if (!this.peer) {
+    if (!this.peer || this.offerSent) {
       return;
     }
     try {
       const offer = await this.peer.createOffer({
-        offerToReceiveAudio: true,
+        offerToReceiveAudio: false,
         offerToReceiveVideo: true,
       });
       await this.peer.setLocalDescription(offer);
+      this.offerSent = true;
       this.send({
         type: "offer",
         ts: Date.now(),
@@ -227,6 +233,7 @@ export class ViewerSignalingClient {
     try {
       await this.peer.setRemoteDescription({ type: "answer", sdp });
       this.callbacks.onLog("[webrtc] remote answer applied");
+      await this.flushPendingCandidates();
     } catch (error) {
       this.callbacks.onLog(`[webrtc] handle answer error: ${String(error)}`);
     }
@@ -248,14 +255,37 @@ export class ViewerSignalingClient {
       return;
     }
     try {
-      await this.peer.addIceCandidate({
+      const candidateInit = {
         candidate: candidatePayload.candidate,
         sdpMid: candidatePayload.sdpMid ?? null,
         sdpMLineIndex: candidatePayload.sdpMLineIndex ?? null,
-      });
+      };
+      if (!this.peer.remoteDescription) {
+        this.pendingRemoteCandidates.push(candidateInit);
+        this.callbacks.onLog("[webrtc] remote candidate queued");
+        return;
+      }
+      await this.peer.addIceCandidate(candidateInit);
       this.callbacks.onLog("[webrtc] remote candidate applied");
     } catch (error) {
       this.callbacks.onLog(`[webrtc] add candidate error: ${String(error)}`);
+    }
+  }
+
+  private async flushPendingCandidates() {
+    if (!this.peer) {
+      return;
+    }
+    while (this.pendingRemoteCandidates.length > 0) {
+      const candidate = this.pendingRemoteCandidates.shift();
+      if (!candidate) {
+        continue;
+      }
+      try {
+        await this.peer.addIceCandidate(candidate);
+      } catch (error) {
+        this.callbacks.onLog(`[webrtc] flush candidate error: ${String(error)}`);
+      }
     }
   }
 }

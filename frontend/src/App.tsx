@@ -72,10 +72,10 @@ export function App() {
       onStatus: (next) => setSignalStatus(next),
       onLog: (line) => setSignalLog((prev) => [line, ...prev].slice(0, 20)),
       onRemoteVideoStream: (stream) => {
-        setWebrtcVideoActive(true);
         const video = document.getElementById("ruc-remote-video") as HTMLVideoElement | null;
         if (video) {
           video.srcObject = stream;
+          video.onloadeddata = () => setWebrtcVideoActive(true);
           void video.play().catch(() => undefined);
         }
       },

@@ -33,6 +33,8 @@ import dev.onvoid.webrtc.media.video.desktop.WindowCapturer;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 /** In-process WebRTC bridge: desktop capture and SDP/ICE for the browser viewer. */
@@ -50,6 +52,7 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
     private VideoTrack videoTrack;
     private RTCDataChannel inputChannel;
     private WebSocket activeSocket;
+    private final Deque<JsonNode> pendingRemoteCandidates = new ArrayDeque<>();
 
     private AgentWebRtcBridge(AgentConfig cfg, AgentRemoteInput remoteInput) {
         this.cfg = cfg;
@@ -85,7 +88,15 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
 
         synchronized (lock) {
             activeSocket = webSocket;
+            if (peerConnection != null) {
+                RTCPeerConnectionState state = peerConnection.getConnectionState();
+                if (state == RTCPeerConnectionState.CONNECTED || state == RTCPeerConnectionState.CONNECTING) {
+                    System.out.println("[agent] offer ignored: connection already " + state);
+                    return;
+                }
+            }
             closePeerConnectionLocked();
+            pendingRemoteCandidates.clear();
             try {
                 RTCConfiguration config = new RTCConfiguration();
                 RTCIceServer iceServer = new RTCIceServer();
@@ -102,6 +113,7 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
                         new SetSessionDescriptionObserver() {
                             @Override
                             public void onSuccess() {
+                                flushPendingCandidates();
                                 createAndSendAnswer(webSocket);
                             }
 
@@ -122,19 +134,40 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
         if (candidate.isBlank()) {
             return;
         }
-        String sdpMid = payload.path("sdpMid").asText("0");
-        int sdpMLineIndex = payload.path("sdpMLineIndex").asInt(0);
 
         synchronized (lock) {
             if (peerConnection == null) {
-                System.out.println("[agent] webrtc candidate ignored: peer connection not ready");
+                enqueueCandidate(payload);
                 return;
             }
-            try {
-                peerConnection.addIceCandidate(new RTCIceCandidate(sdpMid, sdpMLineIndex, candidate));
-            } catch (Exception e) {
-                System.out.println("[agent] webrtc addIceCandidate failed: " + e.getMessage());
-            }
+            applyRemoteCandidate(payload);
+        }
+    }
+
+    private void enqueueCandidate(JsonNode payload) {
+        if (pendingRemoteCandidates.size() >= 64) {
+            pendingRemoteCandidates.pollFirst();
+        }
+        pendingRemoteCandidates.addLast(payload);
+    }
+
+    private void flushPendingCandidates() {
+        while (!pendingRemoteCandidates.isEmpty()) {
+            applyRemoteCandidate(pendingRemoteCandidates.pollFirst());
+        }
+    }
+
+    private void applyRemoteCandidate(JsonNode payload) {
+        if (peerConnection == null) {
+            return;
+        }
+        String candidate = payload.path("candidate").asText("");
+        String sdpMid = payload.path("sdpMid").asText("0");
+        int sdpMLineIndex = payload.path("sdpMLineIndex").asInt(0);
+        try {
+            peerConnection.addIceCandidate(new RTCIceCandidate(sdpMid, sdpMLineIndex, candidate));
+        } catch (Exception e) {
+            System.out.println("[agent] webrtc addIceCandidate failed: " + e.getMessage());
         }
     }
 
@@ -204,7 +237,7 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
         windowCapturer.dispose();
 
         if (!screens.isEmpty()) {
-            DesktopSource screen = screens.get(0);
+            DesktopSource screen = pickPrimaryScreen(screens);
             System.out.println("[agent] webrtc capture screen: " + screen.title + " (id=" + screen.id + ")");
             videoSource.setSourceId(screen.id, false);
             return;
@@ -217,6 +250,15 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
         }
         System.out.println("[agent] webrtc capture: default primary screen");
         videoSource.setSourceId(0, false);
+    }
+
+    private static DesktopSource pickPrimaryScreen(List<DesktopSource> screens) {
+        for (DesktopSource screen : screens) {
+            if (screen.id == 0) {
+                return screen;
+            }
+        }
+        return screens.get(0);
     }
 
     private void sendAnswer(WebSocket webSocket, RTCSessionDescription description) {
@@ -285,6 +327,7 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
             }
             peerConnection = null;
         }
+        pendingRemoteCandidates.clear();
     }
 
     @Override

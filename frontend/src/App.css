@@ -919,6 +919,9 @@ a.btn-primary {
   display: none;
   width: 100%;
   max-height: 420px;
+  min-height: 200px;
+  object-fit: contain;
+  background: #111;
 }
 
 .remote-desktop-video:only-child,
