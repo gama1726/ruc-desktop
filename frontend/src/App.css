@@ -926,6 +926,15 @@ a.btn-primary {
   display: block;
 }
 
+.remote-desktop-view--input {
+  outline: none;
+  cursor: crosshair;
+}
+
+.remote-desktop-view--input:focus-within {
+  box-shadow: 0 0 0 2px var(--ruk-red);
+}
+
 .remote-desktop-placeholder {
   color: #888;
   padding: 2rem;

@@ -19,6 +19,7 @@ import {
 import { useLocalPeerDisplay } from "./hooks/useLocalPeerDisplay";
 import { ViewerMediaClient } from "./mediaStream";
 import { ViewerSignalingClient } from "./signaling";
+import { attachRemoteInput } from "./remoteInput";
 
 const FAVORITES_KEY = "ruc-favorite-machine-ids";
 
@@ -64,6 +65,7 @@ export function App() {
   const [mediaLog, setMediaLog] = useState<string[]>([]);
   const signalingRef = useRef<ViewerSignalingClient | null>(null);
   const mediaRef = useRef<ViewerMediaClient | null>(null);
+  const detachInputRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     signalingRef.current = new ViewerSignalingClient({
@@ -77,6 +79,14 @@ export function App() {
           void video.play().catch(() => undefined);
         }
       },
+      onInputChannel: (channel) => {
+        const video = document.getElementById("ruc-remote-video") as HTMLVideoElement | null;
+        if (!video) {
+          return;
+        }
+        detachInputRef.current?.();
+        detachInputRef.current = attachRemoteInput(video, channel);
+      },
     });
     mediaRef.current = new ViewerMediaClient({
       onStatus: (next) => setMediaStatus(next),
@@ -89,6 +99,8 @@ export function App() {
       },
     });
     return () => {
+      detachInputRef.current?.();
+      detachInputRef.current = null;
       signalingRef.current?.disconnect();
       signalingRef.current = null;
       mediaRef.current?.disconnect();
@@ -229,6 +241,8 @@ export function App() {
   }
 
   function disconnectSignaling() {
+    detachInputRef.current?.();
+    detachInputRef.current = null;
     signalingRef.current?.disconnect();
     mediaRef.current?.disconnect();
     setRemoteFrameUrl(null);
@@ -536,7 +550,7 @@ export function App() {
                 </span>
               </div>
               <p className="muted small">
-                Основной режим — WebRTC-видео с агента (захват экрана). JPEG через /ws/media — запасной вариант при отладке.
+                Основной режим — WebRTC-видео с агента (захват экрана). Кликните по экрану для мыши и клавиатуры.
               </p>
               <div className="ticket-actions">
                 <button

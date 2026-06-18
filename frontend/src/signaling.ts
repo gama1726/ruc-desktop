@@ -23,11 +23,13 @@ type ViewerSignalingCallbacks = {
   onStatus: (status: "connecting" | "connected" | "closed") => void;
   onLog: (line: string) => void;
   onRemoteVideoStream?: (stream: MediaStream) => void;
+  onInputChannel?: (channel: RTCDataChannel) => void;
 };
 
 export class ViewerSignalingClient {
   private socket: WebSocket | null = null;
   private peer: RTCPeerConnection | null = null;
+  private inputChannel: RTCDataChannel | null = null;
 
   constructor(private readonly callbacks: ViewerSignalingCallbacks) {}
 
@@ -65,6 +67,10 @@ export class ViewerSignalingClient {
       this.socket.close(1000, "manual-close");
     }
     this.socket = null;
+    if (this.inputChannel) {
+      this.inputChannel.close();
+      this.inputChannel = null;
+    }
     if (this.peer) {
       this.peer.close();
       this.peer = null;
@@ -115,6 +121,16 @@ export class ViewerSignalingClient {
     const peer = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
+    this.inputChannel = peer.createDataChannel("ruc-input", { ordered: true });
+    this.inputChannel.onopen = () => {
+      this.callbacks.onLog("[webrtc] input channel open");
+      if (this.inputChannel) {
+        this.callbacks.onInputChannel?.(this.inputChannel);
+      }
+    };
+    this.inputChannel.onerror = () => {
+      this.callbacks.onLog("[webrtc] input channel error");
+    };
     peer.onicecandidate = (event) => {
       if (!event.candidate) {
         return;
