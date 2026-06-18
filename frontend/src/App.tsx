@@ -60,6 +60,7 @@ export function App() {
   const [signalLog, setSignalLog] = useState<string[]>([]);
   const [mediaStatus, setMediaStatus] = useState<"idle" | "connecting" | "connected" | "closed">("idle");
   const [remoteFrameUrl, setRemoteFrameUrl] = useState<string | null>(null);
+  const [webrtcVideoActive, setWebrtcVideoActive] = useState(false);
   const [mediaLog, setMediaLog] = useState<string[]>([]);
   const signalingRef = useRef<ViewerSignalingClient | null>(null);
   const mediaRef = useRef<ViewerMediaClient | null>(null);
@@ -69,6 +70,7 @@ export function App() {
       onStatus: (next) => setSignalStatus(next),
       onLog: (line) => setSignalLog((prev) => [line, ...prev].slice(0, 20)),
       onRemoteVideoStream: (stream) => {
+        setWebrtcVideoActive(true);
         const video = document.getElementById("ruc-remote-video") as HTMLVideoElement | null;
         if (video) {
           video.srcObject = stream;
@@ -230,10 +232,15 @@ export function App() {
     signalingRef.current?.disconnect();
     mediaRef.current?.disconnect();
     setRemoteFrameUrl(null);
+    setWebrtcVideoActive(false);
   }
 
   function connectSignaling(ticket: ConnectionTicket) {
+    setWebrtcVideoActive(false);
     signalingRef.current?.connect(ticket, operator || "demo");
+  }
+
+  function connectMediaFallback(ticket: ConnectionTicket) {
     mediaRef.current?.connect(ticket.token);
   }
 
@@ -524,17 +531,29 @@ export function App() {
             <div className="panel-inline">
               <div className="panel-inline-head">
                 <strong>Медиа-канал (экран агента)</strong>
-                <span className="muted">статус: {mediaStatus}</span>
+                <span className="muted">
+                  WebRTC: {webrtcVideoActive ? "видео" : signalStatus === "connected" ? "ожидание" : "—"} · JPEG: {mediaStatus}
+                </span>
               </div>
               <p className="muted small">
-                Демо: JPEG-кадры с удалённого ПК через агента (java.awt.Robot). WebRTC-видео — после сборки native-helper.
+                Основной режим — WebRTC-видео с агента (захват экрана). JPEG через /ws/media — запасной вариант при отладке.
               </p>
-              <div className="remote-desktop-view">
-                {remoteFrameUrl ? (
+              <div className="ticket-actions">
+                <button
+                  type="button"
+                  className="btn-secondary-outline btn-sm"
+                  onClick={() => lastTicket && connectMediaFallback(lastTicket)}
+                  disabled={mediaStatus === "connecting"}
+                >
+                  Подключить JPEG fallback
+                </button>
+              </div>
+              <div className={`remote-desktop-view${webrtcVideoActive ? " remote-desktop-view--webrtc" : ""}`}>
+                {remoteFrameUrl && !webrtcVideoActive ? (
                   <img className="remote-desktop-img" src={remoteFrameUrl} alt="Удалённый рабочий стол" />
-                ) : (
-                  <div className="remote-desktop-placeholder">Ожидание кадров от агента…</div>
-                )}
+                ) : !webrtcVideoActive ? (
+                  <div className="remote-desktop-placeholder">Ожидание WebRTC-видео от агента…</div>
+                ) : null}
                 <video id="ruc-remote-video" className="remote-desktop-video" autoPlay playsInline muted />
               </div>
               {mediaLog.length > 0 ? <pre className="signal-log">{mediaLog.join("\n")}</pre> : null}
