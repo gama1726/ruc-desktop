@@ -19,7 +19,7 @@ import {
 import { useLocalPeerDisplay } from "./hooks/useLocalPeerDisplay";
 import { ViewerMediaClient } from "./mediaStream";
 import { ViewerSignalingClient } from "./signaling";
-import { attachRemoteInput } from "./remoteInput";
+import { attachRemoteInput, selectRemoteScreen, type RemoteScreenInfo } from "./remoteInput";
 
 const FAVORITES_KEY = "ruc-favorite-machine-ids";
 
@@ -62,10 +62,15 @@ export function App() {
   const [mediaStatus, setMediaStatus] = useState<"idle" | "connecting" | "connected" | "closed">("idle");
   const [remoteFrameUrl, setRemoteFrameUrl] = useState<string | null>(null);
   const [webrtcVideoActive, setWebrtcVideoActive] = useState(false);
+  const [remoteScreens, setRemoteScreens] = useState<RemoteScreenInfo[]>([]);
+  const [activeScreenId, setActiveScreenId] = useState<number | null>(null);
+  const [desktopExpanded, setDesktopExpanded] = useState(false);
   const [mediaLog, setMediaLog] = useState<string[]>([]);
   const signalingRef = useRef<ViewerSignalingClient | null>(null);
   const mediaRef = useRef<ViewerMediaClient | null>(null);
   const detachInputRef = useRef<(() => void) | null>(null);
+  const inputChannelRef = useRef<RTCDataChannel | null>(null);
+  const remoteDesktopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     signalingRef.current = new ViewerSignalingClient({
@@ -80,12 +85,18 @@ export function App() {
         }
       },
       onInputChannel: (channel) => {
+        inputChannelRef.current = channel;
         const video = document.getElementById("ruc-remote-video") as HTMLVideoElement | null;
         if (!video) {
           return;
         }
         detachInputRef.current?.();
-        detachInputRef.current = attachRemoteInput(video, channel);
+        detachInputRef.current = attachRemoteInput(video, channel, {
+          onScreens: (message) => {
+            setRemoteScreens(message.screens);
+            setActiveScreenId(message.activeId);
+          },
+        });
       },
     });
     mediaRef.current = new ViewerMediaClient({
@@ -243,10 +254,14 @@ export function App() {
   function disconnectSignaling() {
     detachInputRef.current?.();
     detachInputRef.current = null;
+    inputChannelRef.current = null;
+    setRemoteScreens([]);
+    setActiveScreenId(null);
+    setDesktopExpanded(false);
+    setWebrtcVideoActive(false);
     signalingRef.current?.disconnect();
     mediaRef.current?.disconnect();
     setRemoteFrameUrl(null);
-    setWebrtcVideoActive(false);
   }
 
   function connectSignaling(ticket: ConnectionTicket) {
@@ -256,6 +271,31 @@ export function App() {
 
   function connectMediaFallback(ticket: ConnectionTicket) {
     mediaRef.current?.connect(ticket.token);
+  }
+
+  function onSelectRemoteScreen(screenId: number) {
+    const channel = inputChannelRef.current;
+    if (!channel) {
+      return;
+    }
+    selectRemoteScreen(channel, screenId);
+    setActiveScreenId(screenId);
+  }
+
+  function toggleRemoteDesktopExpanded() {
+    setDesktopExpanded((prev) => !prev);
+  }
+
+  function toggleRemoteDesktopFullscreen() {
+    const el = remoteDesktopRef.current;
+    if (!el) {
+      return;
+    }
+    if (!document.fullscreenElement) {
+      void el.requestFullscreen();
+    } else {
+      void document.exitFullscreen();
+    }
   }
 
   function toggleFavorite(machineId: number) {
@@ -550,19 +590,56 @@ export function App() {
                 </span>
               </div>
               <p className="muted small">
-                Основной режим — WebRTC-видео с агента (захват экрана). Кликните по экрану для мыши и клавиатуры.
+                Кликните по экрану для управления. Выберите монитор, если их несколько. Разверните или откройте на весь экран.
               </p>
-              <div className="ticket-actions">
+              <div className="remote-desktop-toolbar">
+                {remoteScreens.length > 1 ? (
+                  <label className="remote-desktop-screen-select">
+                    <span className="muted small">Монитор</span>
+                    <select
+                      className="field-md"
+                      value={activeScreenId ?? remoteScreens[0]?.id ?? ""}
+                      onChange={(e) => onSelectRemoteScreen(Number(e.target.value))}
+                    >
+                      {remoteScreens.map((screen) => (
+                        <option key={screen.id} value={screen.id}>
+                          {screen.title} ({screen.width}×{screen.height})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn-secondary-outline btn-sm"
+                  onClick={toggleRemoteDesktopExpanded}
+                  disabled={!webrtcVideoActive}
+                >
+                  {desktopExpanded ? "Свернуть" : "Развернуть"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary-outline btn-sm"
+                  onClick={toggleRemoteDesktopFullscreen}
+                  disabled={!webrtcVideoActive}
+                >
+                  На весь экран
+                </button>
                 <button
                   type="button"
                   className="btn-secondary-outline btn-sm"
                   onClick={() => lastTicket && connectMediaFallback(lastTicket)}
                   disabled={mediaStatus === "connecting"}
                 >
-                  Подключить JPEG fallback
+                  JPEG fallback
                 </button>
               </div>
-              <div className={`remote-desktop-view${webrtcVideoActive ? " remote-desktop-view--webrtc" : ""}`}>
+              <div
+                ref={remoteDesktopRef}
+                className={`remote-desktop-view${webrtcVideoActive ? " remote-desktop-view--webrtc" : ""}${
+                  desktopExpanded ? " remote-desktop-view--expanded" : ""
+                }`}
+              >
                 {remoteFrameUrl && !webrtcVideoActive ? (
                   <img className="remote-desktop-img" src={remoteFrameUrl} alt="Удалённый рабочий стол" />
                 ) : !webrtcVideoActive ? (

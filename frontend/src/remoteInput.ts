@@ -4,9 +4,27 @@ export type RemoteInputMessage =
   | { type: "mouseup"; x: number; y: number; button: number }
   | { type: "wheel"; x: number; y: number; deltaY: number }
   | { type: "keydown"; code: string; key: string }
-  | { type: "keyup"; code: string; key: string };
+  | { type: "keyup"; code: string; key: string }
+  | { type: "select-screen"; id: number };
+
+export type RemoteScreenInfo = {
+  id: number;
+  title: string;
+  width: number;
+  height: number;
+};
+
+export type RemoteScreensMessage = {
+  type: "screens";
+  screens: RemoteScreenInfo[];
+  activeId: number;
+};
 
 type NormalizedPoint = { x: number; y: number };
+
+type AttachRemoteInputOptions = {
+  onScreens?: (message: RemoteScreensMessage) => void;
+};
 
 function mapClientToNormalized(
   video: HTMLVideoElement,
@@ -39,8 +57,16 @@ function send(channel: RTCDataChannel, message: RemoteInputMessage) {
   channel.send(JSON.stringify(message));
 }
 
+export function selectRemoteScreen(channel: RTCDataChannel, id: number) {
+  send(channel, { type: "select-screen", id });
+}
+
 /** Attach mouse/keyboard handlers on the remote video element. */
-export function attachRemoteInput(video: HTMLVideoElement, channel: RTCDataChannel): () => void {
+export function attachRemoteInput(
+  video: HTMLVideoElement,
+  channel: RTCDataChannel,
+  options: AttachRemoteInputOptions = {},
+): () => void {
   const container = video.parentElement;
   if (container) {
     container.tabIndex = 0;
@@ -51,6 +77,17 @@ export function attachRemoteInput(video: HTMLVideoElement, channel: RTCDataChann
 
   const focusContainer = () => {
     container?.focus();
+  };
+
+  const onChannelMessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(String(event.data)) as { type?: string };
+      if (data.type === "screens") {
+        options.onScreens?.(data as RemoteScreensMessage);
+      }
+    } catch {
+      // ignore non-json agent messages
+    }
   };
 
   const onMouseMove = (event: MouseEvent) => {
@@ -111,6 +148,7 @@ export function attachRemoteInput(video: HTMLVideoElement, channel: RTCDataChann
     event.preventDefault();
   };
 
+  channel.addEventListener("message", onChannelMessage);
   video.addEventListener("mousemove", onMouseMove);
   video.addEventListener("mousedown", onMouseDown);
   video.addEventListener("mouseup", onMouseUp);
@@ -121,6 +159,7 @@ export function attachRemoteInput(video: HTMLVideoElement, channel: RTCDataChann
   video.addEventListener("click", focusContainer);
 
   return () => {
+    channel.removeEventListener("message", onChannelMessage);
     video.removeEventListener("mousemove", onMouseMove);
     video.removeEventListener("mousedown", onMouseDown);
     video.removeEventListener("mouseup", onMouseUp);

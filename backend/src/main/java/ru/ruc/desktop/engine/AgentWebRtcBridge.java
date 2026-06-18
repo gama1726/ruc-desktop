@@ -27,10 +27,8 @@ import dev.onvoid.webrtc.SetSessionDescriptionObserver;
 import dev.onvoid.webrtc.media.MediaStream;
 import dev.onvoid.webrtc.media.video.VideoDesktopSource;
 import dev.onvoid.webrtc.media.video.VideoTrack;
-import dev.onvoid.webrtc.media.video.desktop.DesktopSource;
-import dev.onvoid.webrtc.media.video.desktop.ScreenCapturer;
-import dev.onvoid.webrtc.media.video.desktop.WindowCapturer;
 import java.net.http.WebSocket;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
@@ -44,6 +42,7 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
     private static final PeerConnectionFactory FACTORY = new PeerConnectionFactory();
 
     private final AgentConfig cfg;
+    private final AgentCaptureDisplay captureDisplay;
     private final AgentRemoteInput remoteInput;
     private final Object lock = new Object();
 
@@ -54,18 +53,20 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
     private WebSocket activeSocket;
     private final Deque<JsonNode> pendingRemoteCandidates = new ArrayDeque<>();
 
-    private AgentWebRtcBridge(AgentConfig cfg, AgentRemoteInput remoteInput) {
+    private AgentWebRtcBridge(AgentConfig cfg, AgentCaptureDisplay captureDisplay, AgentRemoteInput remoteInput) {
         this.cfg = cfg;
+        this.captureDisplay = captureDisplay;
         this.remoteInput = remoteInput;
     }
 
     static AgentWebRtcBridge tryCreate(AgentConfig cfg) {
         try {
-            AgentRemoteInput remoteInput = AgentRemoteInput.tryCreate();
+            AgentCaptureDisplay captureDisplay = new AgentCaptureDisplay();
+            AgentRemoteInput remoteInput = AgentRemoteInput.tryCreate(captureDisplay);
             if (remoteInput == null) {
                 return null;
             }
-            AgentWebRtcBridge bridge = new AgentWebRtcBridge(cfg, remoteInput);
+            AgentWebRtcBridge bridge = new AgentWebRtcBridge(cfg, captureDisplay, remoteInput);
             System.out.println("[agent] java webrtc bridge ready (webrtc-java)");
             return bridge;
         } catch (Throwable t) {
@@ -218,7 +219,8 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
         int maxHeight = (int) (maxWidth * 9L / 16L);
         videoSource.setFrameRate(cfg.webrtcMaxFps());
         videoSource.setMaxFrameSize(maxWidth, maxHeight);
-        selectDesktopSource(videoSource);
+        captureDisplay.reloadScreens();
+        captureDisplay.applyToCapture(videoSource);
         videoSource.start();
 
         videoTrack = FACTORY.createVideoTrack("screen", videoSource);
@@ -228,37 +230,47 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
         System.out.println("[agent] webrtc desktop capture started (" + maxWidth + "x" + maxHeight + ")");
     }
 
-    private static void selectDesktopSource(VideoDesktopSource videoSource) {
-        ScreenCapturer screenCapturer = new ScreenCapturer();
-        List<DesktopSource> screens = screenCapturer.getDesktopSources();
-        WindowCapturer windowCapturer = new WindowCapturer();
-        List<DesktopSource> windows = windowCapturer.getDesktopSources();
-        screenCapturer.dispose();
-        windowCapturer.dispose();
-
-        if (!screens.isEmpty()) {
-            DesktopSource screen = pickPrimaryScreen(screens);
-            System.out.println("[agent] webrtc capture screen: " + screen.title + " (id=" + screen.id + ")");
-            videoSource.setSourceId(screen.id, false);
-            return;
+    private boolean switchCaptureScreen(int desktopId) {
+        if (!captureDisplay.selectByDesktopId(desktopId)) {
+            return false;
         }
-        if (!windows.isEmpty()) {
-            DesktopSource window = windows.get(0);
-            System.out.println("[agent] webrtc capture window: " + window.title + " (id=" + window.id + ")");
-            videoSource.setSourceId(window.id, true);
-            return;
+        if (videoSource != null) {
+            captureDisplay.applyToCapture(videoSource);
+            System.out.println("[agent] switched capture to screen id=" + desktopId);
+            return true;
         }
-        System.out.println("[agent] webrtc capture: default primary screen");
-        videoSource.setSourceId(0, false);
+        return false;
     }
 
-    private static DesktopSource pickPrimaryScreen(List<DesktopSource> screens) {
-        for (DesktopSource screen : screens) {
-            if (screen.id == 0) {
-                return screen;
-            }
+    private void sendDataChannelText(RTCDataChannel channel, String text) {
+        if (channel == null || channel.getState() != RTCDataChannelState.OPEN) {
+            return;
         }
-        return screens.get(0);
+        try {
+            byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+            channel.send(new RTCDataChannelBuffer(ByteBuffer.wrap(bytes), false));
+        } catch (Exception e) {
+            System.out.println("[agent] data channel send failed: " + e.getMessage());
+        }
+    }
+
+    private void handleDataChannelMessage(String json) {
+        try {
+            JsonNode node = MAPPER.readTree(json);
+            String type = node.path("type").asText("");
+            if ("select-screen".equals(type)) {
+                int screenId = node.path("id").asInt(-1);
+                if (switchCaptureScreen(screenId) && inputChannel != null) {
+                    sendDataChannelText(inputChannel, captureDisplay.screensJson());
+                }
+                return;
+            }
+            if (remoteInput != null) {
+                remoteInput.handleMessage(json);
+            }
+        } catch (Exception e) {
+            System.out.println("[agent] data channel message error: " + e.getMessage());
+        }
     }
 
     private void sendAnswer(WebSocket webSocket, RTCSessionDescription description) {
@@ -372,16 +384,19 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
                     @Override
                     public void onStateChange() {
                         System.out.println("[agent] input channel state: " + dataChannel.getState());
+                        if (dataChannel.getState() == RTCDataChannelState.OPEN) {
+                            sendDataChannelText(dataChannel, captureDisplay.screensJson());
+                        }
                     }
 
                     @Override
                     public void onMessage(RTCDataChannelBuffer buffer) {
-                        if (buffer.binary || remoteInput == null) {
+                        if (buffer.binary) {
                             return;
                         }
                         byte[] bytes = new byte[buffer.data.remaining()];
                         buffer.data.get(bytes);
-                        remoteInput.handleMessage(new String(bytes, StandardCharsets.UTF_8));
+                        handleDataChannelMessage(new String(bytes, StandardCharsets.UTF_8));
                     }
                 });
         System.out.println("[agent] input channel attached");

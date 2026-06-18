@@ -3,9 +3,7 @@ package ru.ruc.desktop.engine;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.awt.AWTException;
-import java.awt.Dimension;
 import java.awt.Robot;
-import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
@@ -15,17 +13,17 @@ final class AgentRemoteInput {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Robot robot;
-    private final Dimension screenSize;
+    private final AgentCaptureDisplay captureDisplay;
 
-    AgentRemoteInput() throws AWTException {
+    AgentRemoteInput(AgentCaptureDisplay captureDisplay) throws AWTException {
         this.robot = new Robot();
         this.robot.setAutoDelay(0);
-        this.screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        this.captureDisplay = captureDisplay;
     }
 
-    static AgentRemoteInput tryCreate() {
+    static AgentRemoteInput tryCreate(AgentCaptureDisplay captureDisplay) {
         try {
-            return new AgentRemoteInput();
+            return new AgentRemoteInput(captureDisplay);
         } catch (AWTException e) {
             System.out.println("[agent] remote input unavailable: " + e.getMessage());
             return null;
@@ -53,17 +51,17 @@ final class AgentRemoteInput {
     }
 
     private void mouseMove(JsonNode node) {
-        Point point = normalizedPoint(node);
+        AgentCaptureDisplay.Point point = normalizedPoint(node);
         if (point == null) {
             return;
         }
-        robot.mouseMove(point.x, point.y);
+        robot.mouseMove(point.x(), point.y());
     }
 
     private void mousePress(JsonNode node, boolean down) {
-        Point point = normalizedPoint(node);
+        AgentCaptureDisplay.Point point = normalizedPoint(node);
         if (point != null) {
-            robot.mouseMove(point.x, point.y);
+            robot.mouseMove(point.x(), point.y());
         }
         int mask = mouseButtonMask(node.path("button").asInt(0));
         if (down) {
@@ -74,9 +72,9 @@ final class AgentRemoteInput {
     }
 
     private void mouseWheel(JsonNode node) {
-        Point point = normalizedPoint(node);
+        AgentCaptureDisplay.Point point = normalizedPoint(node);
         if (point != null) {
-            robot.mouseMove(point.x, point.y);
+            robot.mouseMove(point.x(), point.y());
         }
         int deltaY = node.path("deltaY").asInt(0);
         if (deltaY == 0) {
@@ -98,18 +96,13 @@ final class AgentRemoteInput {
         }
     }
 
-    private Point normalizedPoint(JsonNode node) {
+    private AgentCaptureDisplay.Point normalizedPoint(JsonNode node) {
         if (!node.has("x") || !node.has("y")) {
             return null;
         }
         double x = node.path("x").asDouble(Double.NaN);
         double y = node.path("y").asDouble(Double.NaN);
-        if (Double.isNaN(x) || Double.isNaN(y) || x < 0 || x > 1 || y < 0 || y > 1) {
-            return null;
-        }
-        int absX = (int) Math.round(x * (screenSize.width - 1));
-        int absY = (int) Math.round(y * (screenSize.height - 1));
-        return new Point(absX, absY);
+        return captureDisplay.mapNormalized(x, y);
     }
 
     private static int mouseButtonMask(int button) {
@@ -154,6 +147,4 @@ final class AgentRemoteInput {
             }
         };
     }
-
-    private record Point(int x, int y) {}
 }
