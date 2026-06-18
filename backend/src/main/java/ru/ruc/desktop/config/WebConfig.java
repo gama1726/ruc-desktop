@@ -11,7 +11,7 @@ public class WebConfig {
 
     @Bean
     public WebMvcConfigurer corsConfigurer(
-            @Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOriginsCsv) {
+            @Value("${app.cors.allowed-origins:http://localhost:5174}") String allowedOriginsCsv) {
         String[] allowedOrigins = allowedOriginsCsv.split("\\s*,\\s*");
         return new WebMvcConfigurer() {
             @Override

@@ -22,8 +22,11 @@ spring:
       path: /h2-console
 
 app:
+  websocket:
+    max-text-message-size: 8388608
   cors:
-    allowed-origins: http://localhost:5173
+    # Dev: http://localhost:5174 . Prod (Docker): set RUC_CORS_ALLOWED_ORIGINS or use nginx same-origin.
+    allowed-origins: ${RUC_CORS_ALLOWED_ORIGINS:http://localhost:5174}
   remote:
     # Демо для заказчика: peer в адресной книге = ID в клиенте удалённого доступа (без пробелов).
     # При смене клиента замените шаблон (плейсхолдер {peerId}).
