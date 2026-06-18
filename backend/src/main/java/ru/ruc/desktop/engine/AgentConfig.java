@@ -10,6 +10,8 @@ public record AgentConfig(
         String ipAddress,
         long heartbeatIntervalSeconds,
         String helperPath,
+        boolean webrtcJavaEnabled,
+        int webrtcMaxFps,
         boolean screenCaptureEnabled,
         int captureMaxWidth,
         int captureIntervalMs,
@@ -22,6 +24,8 @@ public record AgentConfig(
         String remoteId = getenv("RUC_AGENT_REMOTE_ID", "260227322");
         String ip = getenv("RUC_AGENT_IP", "127.0.0.1");
         String helperPath = getenv("RUC_AGENT_HELPER_PATH", "");
+        boolean webrtcJava = !"false".equalsIgnoreCase(getenv("RUC_AGENT_WEBRTC", "true"));
+        int webrtcFps = (int) parseLongOrDefault(System.getenv("RUC_AGENT_WEBRTC_MAX_FPS"), 15L);
         Long machineId = parseLongOrNull(System.getenv("RUC_AGENT_MACHINE_ID"));
         long heartbeat = parseLongOrDefault(System.getenv("RUC_AGENT_HEARTBEAT_SECONDS"), 15L);
         boolean screenCapture = !"false".equalsIgnoreCase(getenv("RUC_AGENT_SCREEN_CAPTURE", "true"));
@@ -37,6 +41,8 @@ public record AgentConfig(
                 ip,
                 heartbeat,
                 helperPath.isBlank() ? null : helperPath,
+                webrtcJava,
+                webrtcFps,
                 screenCapture,
                 maxWidth,
                 intervalMs,

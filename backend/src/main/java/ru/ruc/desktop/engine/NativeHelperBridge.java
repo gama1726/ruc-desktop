@@ -4,10 +4,10 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.net.http.WebSocket;
 
 /** JSON-line bridge to the optional native WebRTC helper process. */
 final class NativeHelperBridge {
@@ -15,6 +15,7 @@ final class NativeHelperBridge {
     private final Process process;
     private final BufferedWriter writer;
     private final BufferedReader reader;
+    private volatile WebSocket attachedSocket;
 
     private NativeHelperBridge(Process process, BufferedWriter writer, BufferedReader reader) {
         this.process = process;
@@ -39,11 +40,16 @@ final class NativeHelperBridge {
                     new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
             NativeHelperBridge bridge = new NativeHelperBridge(process, writer, reader);
             bridge.drainStartupLogs();
+            bridge.startReaderThread();
             return bridge;
         } catch (Exception e) {
             System.out.println("[agent] helper start failed: " + e.getMessage());
             return null;
         }
+    }
+
+    void attachSocket(WebSocket webSocket) {
+        this.attachedSocket = webSocket;
     }
 
     void sendToHelper(String type, String payloadJson) {
@@ -57,9 +63,7 @@ final class NativeHelperBridge {
     }
 
     void drainToSocket(WebSocket webSocket) {
-        if (webSocket == null) {
-            return;
-        }
+        attachSocket(webSocket);
         try {
             while (reader.ready()) {
                 String line = reader.readLine();
@@ -71,6 +75,30 @@ final class NativeHelperBridge {
         } catch (Exception e) {
             System.out.println("[agent] helper read failed: " + e.getMessage());
         }
+    }
+
+    private void startReaderThread() {
+        Thread thread =
+                new Thread(
+                        () -> {
+                            try {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    if (line.isBlank()) {
+                                        continue;
+                                    }
+                                    WebSocket socket = attachedSocket;
+                                    if (socket != null) {
+                                        socket.sendText(line, true);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                System.out.println("[agent] helper reader stopped: " + e.getMessage());
+                            }
+                        },
+                        "ruc-native-helper-reader");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void drainStartupLogs() {
@@ -87,6 +115,7 @@ final class NativeHelperBridge {
     }
 
     void shutdown() {
+        attachedSocket = null;
         try {
             writer.write("{\"type\":\"shutdown\"}");
             writer.newLine();

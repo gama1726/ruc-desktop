@@ -35,6 +35,8 @@ final class AgentRuntime {
         System.out.println("[agent] starting with uid=" + cfg.agentUid() + ", remoteId=" + cfg.remoteId());
         System.out.println("[agent] backend=" + cfg.backendBaseUrl());
         System.out.println("[agent] native helper=" + (cfg.helperPath() == null ? "disabled" : cfg.helperPath()));
+        System.out.println("[agent] java webrtc=" + cfg.webrtcJavaEnabled());
+        System.out.println("[agent] jpeg media=" + cfg.screenCaptureEnabled());
 
         while (true) {
             tickHeartbeat();
