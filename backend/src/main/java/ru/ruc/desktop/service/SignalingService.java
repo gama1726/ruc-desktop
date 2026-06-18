@@ -2,6 +2,8 @@ package ru.ruc.desktop.service;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
@@ -44,10 +46,16 @@ public class SignalingService {
     public void register(String ticket, String role, String actor, WebSocketSession session) {
         rooms.compute(ticket, (k, prev) -> {
             PeerPair pair = prev == null ? new PeerPair() : prev;
-            if ("viewer".equals(role)) {
-                pair.viewer = session;
-            } else {
-                pair.agent = session;
+            try {
+                if ("viewer".equals(role)) {
+                    pair.viewer = session;
+                    flushPending(pair.pendingToViewer, session);
+                } else {
+                    pair.agent = session;
+                    flushPending(pair.pendingToAgent, session);
+                }
+            } catch (IOException e) {
+                throw new IllegalStateException("failed to flush pending signaling messages", e);
             }
             return pair;
         });
@@ -72,8 +80,24 @@ public class SignalingService {
             return;
         }
         WebSocketSession target = "viewer".equals(role) ? pair.agent : pair.viewer;
+        Deque<String> pending = "viewer".equals(role) ? pair.pendingToAgent : pair.pendingToViewer;
         if (target != null && target.isOpen()) {
             target.sendMessage(new TextMessage(payload));
+        } else {
+            enqueue(pending, payload);
+        }
+    }
+
+    private static void enqueue(Deque<String> pending, String payload) {
+        if (pending.size() >= 64) {
+            pending.pollFirst();
+        }
+        pending.addLast(payload);
+    }
+
+    private static void flushPending(Deque<String> pending, WebSocketSession session) throws IOException {
+        while (!pending.isEmpty() && session.isOpen()) {
+            session.sendMessage(new TextMessage(pending.pollFirst()));
         }
     }
 
@@ -95,5 +119,7 @@ public class SignalingService {
     private static class PeerPair {
         private WebSocketSession viewer;
         private WebSocketSession agent;
+        private final Deque<String> pendingToViewer = new ArrayDeque<>();
+        private final Deque<String> pendingToAgent = new ArrayDeque<>();
     }
 }

@@ -41,7 +41,6 @@ export class ViewerSignalingClient {
       this.callbacks.onStatus("connected");
       this.callbacks.onLog(`[open] ticket=${ticket.token}`);
       this.send({ type: "viewer-ready", ts: Date.now() });
-      void this.createAndSendOffer();
     };
 
     ws.onmessage = (event) => {
@@ -99,6 +98,7 @@ export class ViewerSignalingClient {
         break;
       case "agent-ready":
         this.callbacks.onLog("[webrtc] agent ready");
+        void this.createAndSendOffer();
         break;
       case "ping":
         this.send({ type: "pong", ts: Date.now() });
