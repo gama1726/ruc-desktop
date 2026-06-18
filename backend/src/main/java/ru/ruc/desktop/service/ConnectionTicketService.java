@@ -111,8 +111,17 @@ public class ConnectionTicketService {
             return Optional.empty();
         }
         expireOverdue();
-        return ticketRepository
-                .findTopByRemoteIdAndStatusOrderByCreatedAtDesc(normalizedRemoteId, ConnectionTicketStatus.ISSUED)
+        Optional<ConnectionTicket> ticket =
+                ticketRepository
+                        .findTopByRemoteIdAndStatusOrderByCreatedAtDesc(
+                                normalizedRemoteId, ConnectionTicketStatus.ISSUED);
+        if (ticket.isEmpty()) {
+            ticket =
+                    ticketRepository.findTopByRemoteIdAndStatusOrderByCreatedAtDesc(
+                            normalizedRemoteId, ConnectionTicketStatus.CONSUMED);
+        }
+        return ticket
+                .filter(t -> t.getExpiresAt().isAfter(Instant.now()))
                 .map(t -> new ConnectionTicketResponse(
                         t.getToken(),
                         t.getMachineId(),
