@@ -5,6 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(RUC_NATIVE_HELPER_STUB "Build stub helper without libdatachannel" ON)
+
+if (RUC_NATIVE_HELPER_STUB)
+    add_executable(ruc_native_helper
+        src/main_stub.cpp
+    )
+    return()
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
