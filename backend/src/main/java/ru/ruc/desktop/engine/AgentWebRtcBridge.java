@@ -9,6 +9,9 @@ import dev.onvoid.webrtc.PeerConnectionObserver;
 import dev.onvoid.webrtc.RTCAnswerOptions;
 import dev.onvoid.webrtc.RTCConfiguration;
 import dev.onvoid.webrtc.RTCDataChannel;
+import dev.onvoid.webrtc.RTCDataChannelBuffer;
+import dev.onvoid.webrtc.RTCDataChannelObserver;
+import dev.onvoid.webrtc.RTCDataChannelState;
 import dev.onvoid.webrtc.RTCIceCandidate;
 import dev.onvoid.webrtc.RTCIceConnectionState;
 import dev.onvoid.webrtc.RTCIceGatheringState;
@@ -28,6 +31,7 @@ import dev.onvoid.webrtc.media.video.desktop.DesktopSource;
 import dev.onvoid.webrtc.media.video.desktop.ScreenCapturer;
 import dev.onvoid.webrtc.media.video.desktop.WindowCapturer;
 import java.net.http.WebSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,20 +42,27 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
     private static final PeerConnectionFactory FACTORY = new PeerConnectionFactory();
 
     private final AgentConfig cfg;
+    private final AgentRemoteInput remoteInput;
     private final Object lock = new Object();
 
     private RTCPeerConnection peerConnection;
     private VideoDesktopSource videoSource;
     private VideoTrack videoTrack;
+    private RTCDataChannel inputChannel;
     private WebSocket activeSocket;
 
-    private AgentWebRtcBridge(AgentConfig cfg) {
+    private AgentWebRtcBridge(AgentConfig cfg, AgentRemoteInput remoteInput) {
         this.cfg = cfg;
+        this.remoteInput = remoteInput;
     }
 
     static AgentWebRtcBridge tryCreate(AgentConfig cfg) {
         try {
-            AgentWebRtcBridge bridge = new AgentWebRtcBridge(cfg);
+            AgentRemoteInput remoteInput = AgentRemoteInput.tryCreate();
+            if (remoteInput == null) {
+                return null;
+            }
+            AgentWebRtcBridge bridge = new AgentWebRtcBridge(cfg, remoteInput);
             System.out.println("[agent] java webrtc bridge ready (webrtc-java)");
             return bridge;
         } catch (Throwable t) {
@@ -248,6 +259,15 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
 
     private void closePeerConnectionLocked() {
         videoTrack = null;
+        if (inputChannel != null) {
+            try {
+                inputChannel.unregisterObserver();
+                inputChannel.close();
+            } catch (Exception ignored) {
+                // ignore
+            }
+            inputChannel = null;
+        }
         if (videoSource != null) {
             try {
                 videoSource.stop();
@@ -294,7 +314,34 @@ final class AgentWebRtcBridge implements PeerConnectionObserver {
 
     @Override
     public void onDataChannel(RTCDataChannel dataChannel) {
-        System.out.println("[agent] webrtc data channel: " + dataChannel.getLabel());
+        if (!"ruc-input".equals(dataChannel.getLabel())) {
+            System.out.println("[agent] webrtc data channel ignored: " + dataChannel.getLabel());
+            return;
+        }
+        inputChannel = dataChannel;
+        dataChannel.registerObserver(
+                new RTCDataChannelObserver() {
+                    @Override
+                    public void onBufferedAmountChange(long previousAmount) {
+                        // no-op
+                    }
+
+                    @Override
+                    public void onStateChange() {
+                        System.out.println("[agent] input channel state: " + dataChannel.getState());
+                    }
+
+                    @Override
+                    public void onMessage(RTCDataChannelBuffer buffer) {
+                        if (buffer.binary || remoteInput == null) {
+                            return;
+                        }
+                        byte[] bytes = new byte[buffer.data.remaining()];
+                        buffer.data.get(bytes);
+                        remoteInput.handleMessage(new String(bytes, StandardCharsets.UTF_8));
+                    }
+                });
+        System.out.println("[agent] input channel attached");
     }
 
     @Override
