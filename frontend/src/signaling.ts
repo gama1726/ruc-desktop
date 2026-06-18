@@ -22,6 +22,7 @@ export type SignalEnvelope = {
 type ViewerSignalingCallbacks = {
   onStatus: (status: "connecting" | "connected" | "closed") => void;
   onLog: (line: string) => void;
+  onRemoteVideoStream?: (stream: MediaStream) => void;
 };
 
 export class ViewerSignalingClient {
@@ -130,6 +131,12 @@ export class ViewerSignalingClient {
     };
     peer.onconnectionstatechange = () => {
       this.callbacks.onLog(`[webrtc] state=${peer.connectionState}`);
+    };
+    peer.ontrack = (event) => {
+      if (event.streams[0]) {
+        this.callbacks.onLog("[webrtc] remote video track received");
+        this.callbacks.onRemoteVideoStream?.(event.streams[0]);
+      }
     };
     return peer;
   }

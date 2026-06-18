@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   closeSession,
@@ -17,6 +17,7 @@ import {
   type Session,
 } from "./api";
 import { useLocalPeerDisplay } from "./hooks/useLocalPeerDisplay";
+import { ViewerMediaClient } from "./mediaStream";
 import { ViewerSignalingClient } from "./signaling";
 
 const FAVORITES_KEY = "ruc-favorite-machine-ids";
@@ -57,16 +58,39 @@ export function App() {
   const [engineHint, setEngineHint] = useState<EngineHint | null>(null);
   const [signalStatus, setSignalStatus] = useState<"idle" | "connecting" | "connected" | "closed">("idle");
   const [signalLog, setSignalLog] = useState<string[]>([]);
+  const [mediaStatus, setMediaStatus] = useState<"idle" | "connecting" | "connected" | "closed">("idle");
+  const [remoteFrameUrl, setRemoteFrameUrl] = useState<string | null>(null);
+  const [mediaLog, setMediaLog] = useState<string[]>([]);
   const signalingRef = useRef<ViewerSignalingClient | null>(null);
+  const mediaRef = useRef<ViewerMediaClient | null>(null);
 
   useEffect(() => {
     signalingRef.current = new ViewerSignalingClient({
       onStatus: (next) => setSignalStatus(next),
       onLog: (line) => setSignalLog((prev) => [line, ...prev].slice(0, 20)),
+      onRemoteVideoStream: (stream) => {
+        const video = document.getElementById("ruc-remote-video") as HTMLVideoElement | null;
+        if (video) {
+          video.srcObject = stream;
+          void video.play().catch(() => undefined);
+        }
+      },
+    });
+    mediaRef.current = new ViewerMediaClient({
+      onStatus: (next) => setMediaStatus(next),
+      onLog: (line) => setMediaLog((prev) => [line, ...prev].slice(0, 10)),
+      onFrame: (payload) => {
+        if (payload.data) {
+          const mime = payload.mime || "image/jpeg";
+          setRemoteFrameUrl(`data:${mime};base64,${payload.data}`);
+        }
+      },
     });
     return () => {
       signalingRef.current?.disconnect();
       signalingRef.current = null;
+      mediaRef.current?.disconnect();
+      mediaRef.current = null;
     };
   }, []);
 
@@ -204,10 +228,13 @@ export function App() {
 
   function disconnectSignaling() {
     signalingRef.current?.disconnect();
+    mediaRef.current?.disconnect();
+    setRemoteFrameUrl(null);
   }
 
   function connectSignaling(ticket: ConnectionTicket) {
     signalingRef.current?.connect(ticket, operator || "demo");
+    mediaRef.current?.connect(ticket.token);
   }
 
   function toggleFavorite(machineId: number) {
@@ -490,6 +517,27 @@ export function App() {
               ) : (
                 <p className="muted small">После подключения здесь будут ACK/сообщения от agent-side signaling.</p>
               )}
+            </div>
+          ) : null}
+
+          {lastTicket ? (
+            <div className="panel-inline">
+              <div className="panel-inline-head">
+                <strong>Медиа-канал (экран агента)</strong>
+                <span className="muted">статус: {mediaStatus}</span>
+              </div>
+              <p className="muted small">
+                Демо: JPEG-кадры с удалённого ПК через агента (java.awt.Robot). WebRTC-видео — после сборки native-helper.
+              </p>
+              <div className="remote-desktop-view">
+                {remoteFrameUrl ? (
+                  <img className="remote-desktop-img" src={remoteFrameUrl} alt="Удалённый рабочий стол" />
+                ) : (
+                  <div className="remote-desktop-placeholder">Ожидание кадров от агента…</div>
+                )}
+                <video id="ruc-remote-video" className="remote-desktop-video" autoPlay playsInline muted />
+              </div>
+              {mediaLog.length > 0 ? <pre className="signal-log">{mediaLog.join("\n")}</pre> : null}
             </div>
           ) : null}
 

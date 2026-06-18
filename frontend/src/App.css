@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --ruk-red: #a3121a;
   --ruk-red-dark: #7a0d13;
   --ruk-red-hover: #c41e2a;
@@ -895,5 +895,41 @@ a.btn-primary {
     border-radius: 0 8px 8px 0;
     border-left: none;
   }
+}
+
+.remote-desktop-view {
+  position: relative;
+  margin-top: 0.75rem;
+  border: 1px solid var(--ruk-border);
+  border-radius: 8px;
+  background: #111;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.remote-desktop-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.remote-desktop-video {
+  display: none;
+  width: 100%;
+  max-height: 420px;
+}
+
+.remote-desktop-video:only-child,
+.remote-desktop-view--webrtc .remote-desktop-video {
+  display: block;
+}
+
+.remote-desktop-placeholder {
+  color: #888;
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.9rem;
 }
 
